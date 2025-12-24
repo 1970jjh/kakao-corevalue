@@ -318,10 +318,10 @@ const InterviewSimulation: React.FC<InterviewSimulationProps> = ({ userPhoto, to
                <p className="text-sm font-black text-blue-600">{userName}</p>
             </div>
          </div>
-         <div className="flex gap-1.5 md:gap-3">
+         <div className="flex gap-3 md:gap-4">
             {Object.entries(scores).map(([k, v]) => (
-              <div key={k} className={`px-2.5 py-1.5 border-2 border-kakao-dark rounded-xl text-[9px] font-black shadow-sm transition-all ${v >= TARGET_SCORE ? 'bg-green-500 text-white scale-110' : 'bg-white text-gray-400'}`}>
-                 <span className="hidden md:inline mr-1">{CATEGORY_MAP[k as keyof typeof CATEGORY_MAP]}</span>
+              <div key={k} className={`px-4 py-2.5 border-2 border-kakao-dark rounded-2xl text-sm font-black shadow-sm transition-all ${v >= TARGET_SCORE ? 'bg-green-500 text-white scale-110' : 'bg-white text-gray-400'}`}>
+                 <span className="hidden md:inline mr-1.5">{CATEGORY_MAP[k as keyof typeof CATEGORY_MAP]}</span>
                  <span className="md:hidden uppercase mr-1">{k}</span>
                  {v}
               </div>
