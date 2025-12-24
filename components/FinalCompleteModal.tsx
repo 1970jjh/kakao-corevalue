@@ -166,40 +166,31 @@ const FinalCompleteModal: React.FC<FinalCompleteModalProps> = ({
                 </div>
               </div>
 
-              {/* CEO 환영사 (텍스트 절반으로 축소) */}
+              {/* CEO 환영사 (50% 축소) */}
               <div className="w-full md:w-1/2 bg-white/90 rounded-3xl p-6 flex flex-col justify-center">
-                <h2 className="text-lg font-black text-kakao-brown mb-3 border-b-2 border-kakao-brown pb-2">
-                  🎉 환영합니다!
+                <h2 className="text-lg font-black text-kakao-brown mb-3">
+                  🎉 환영합니다, {userName}님!
                 </h2>
-                <div className="text-sm text-kakao-brown leading-relaxed">
-                  <p className="mb-2">
-                    <strong>{userName}</strong>님,<br/>
-                    핵심가치 내재화 미션을 완료하셨습니다.
-                  </p>
-                  <p className="text-kakao-brown/70 text-xs italic">
-                    "기술과 사람으로 더 나은 세상을"
-                  </p>
-                </div>
-                <div className="mt-4 pt-3 border-t border-kakao-brown/20 text-[10px] text-kakao-brown/50 text-right">
-                  핵심가치 내재화 with AI
-                </div>
+                <p className="text-xs text-kakao-brown/70 italic">
+                  "기술과 사람으로 더 나은 세상을"
+                </p>
               </div>
             </div>
           </div>
 
-          {/* 다운로드 버튼 */}
+          {/* 다운로드 버튼 (카드 바로 아래) */}
           <button
             onClick={handleDownload}
             disabled={isDownloading}
             className={`w-full py-5 rounded-2xl font-black text-xl mb-10 transition-all flex items-center justify-center gap-3 shadow-xl ${
               downloadComplete
                 ? 'bg-green-600 text-white'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-kakao-brown text-kakao-yellow hover:bg-black'
             } disabled:opacity-70`}
           >
             {isDownloading ? (
               <>
-                <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <div className="w-6 h-6 border-4 border-kakao-yellow/30 border-t-kakao-yellow rounded-full animate-spin"></div>
                 저장 중...
               </>
             ) : downloadComplete ? (
@@ -215,57 +206,73 @@ const FinalCompleteModal: React.FC<FinalCompleteModalProps> = ({
             )}
           </button>
 
-          {/* ========== 섹션 2: 방명록 남기기 ========== */}
+          {/* ========== 섹션 2: 크루들의 생생한 한마디 (마퀴 애니메이션) ========== */}
           <div className="bg-white rounded-3xl p-6 mb-8 border-4 border-kakao-brown shadow-xl">
             <h3 className="text-xl font-black text-kakao-brown mb-4 flex items-center gap-2">
-              <span className="text-2xl">📝</span> 방명록에 기록 남기기
+              <span className="text-2xl">💬</span> 크루들의 생생한 한마디
             </h3>
 
-            {/* 입력 영역 */}
-            <div className="mb-4">
-              <textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="핵심가치 내재화 체험 후기를 남겨주세요!"
-                className="w-full p-4 border-2 border-gray-200 rounded-xl resize-none h-24 outline-none focus:border-kakao-yellow text-gray-700"
-              />
+            {/* 마퀴 애니메이션 방명록 */}
+            <div className="relative overflow-hidden py-4 mb-6">
+              {guestbookEntries.length === 0 ? (
+                <p className="text-center text-gray-400 py-8">아직 후기가 없습니다. 첫 번째 후기를 남겨주세요!</p>
+              ) : (
+                <div className="relative h-24 overflow-hidden">
+                  <div className="absolute whitespace-nowrap animate-marquee flex gap-6">
+                    {[...guestbookEntries, ...guestbookEntries].map((entry, idx) => (
+                      <div
+                        key={`${entry.id}-${idx}`}
+                        className="inline-flex items-center gap-3 bg-kakao-yellow/20 px-5 py-3 rounded-2xl border-2 border-kakao-yellow/50"
+                      >
+                        <div className="w-10 h-10 bg-kakao-yellow rounded-full flex items-center justify-center text-kakao-brown font-black shrink-0">
+                          {entry.userName.charAt(0)}
+                        </div>
+                        <div className="text-left">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="font-black text-kakao-brown text-sm">{entry.userName}</span>
+                            <span className="text-xs text-gray-400">{entry.totalPoints.toLocaleString()}P</span>
+                          </div>
+                          <p className="text-xs text-gray-600 max-w-[200px] truncate">"{entry.message}"</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            <button
-              onClick={handleSubmitGuestbook}
-              disabled={isSubmitting || !message.trim()}
-              className="w-full bg-kakao-brown text-kakao-yellow py-4 rounded-xl font-black text-lg hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? '저장 중...' : '저장'}
-            </button>
-
-            {/* 방명록 카드 목록 */}
-            <div className="mt-6 pt-6 border-t-2 border-gray-100">
+            {/* 방명록 입력 영역 */}
+            <div className="pt-6 border-t-2 border-gray-100">
               <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">
-                💬 크루들의 생생한 한마디
+                📝 방명록에 기록 남기기
               </h4>
-              <div className="space-y-3 max-h-80 overflow-y-auto">
-                {guestbookEntries.length === 0 ? (
-                  <p className="text-center text-gray-400 py-8">아직 후기가 없습니다. 첫 번째 후기를 남겨주세요!</p>
-                ) : (
-                  guestbookEntries.map((entry) => (
-                    <div key={entry.id} className="bg-gray-50 rounded-xl p-4 flex items-start gap-3 border border-gray-100">
-                      <div className="w-10 h-10 bg-kakao-yellow rounded-full flex items-center justify-center text-kakao-brown font-black shrink-0">
-                        {entry.userName.charAt(0)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-black text-kakao-brown">{entry.userName}</span>
-                          <span className="text-xs text-gray-400">{entry.totalPoints.toLocaleString()}P</span>
-                        </div>
-                        <p className="text-sm text-gray-600 break-words">"{entry.message}"</p>
-                      </div>
-                    </div>
-                  ))
-                )}
+              <div className="mb-4">
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="핵심가치 내재화 체험 후기를 남겨주세요!"
+                  className="w-full p-4 border-2 border-gray-200 rounded-xl resize-none h-24 outline-none focus:border-kakao-yellow text-gray-700"
+                />
               </div>
+              <button
+                onClick={handleSubmitGuestbook}
+                disabled={isSubmitting || !message.trim()}
+                className="w-full bg-kakao-brown text-kakao-yellow py-4 rounded-xl font-black text-lg hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? '저장 중...' : '저장'}
+              </button>
             </div>
           </div>
+
+          <style>{`
+            @keyframes marquee {
+              0% { transform: translateX(0); }
+              100% { transform: translateX(-50%); }
+            }
+            .animate-marquee {
+              animation: marquee 25s linear infinite;
+            }
+          `}</style>
 
           {/* ========== 섹션 3: 리더보드 Top 20 ========== */}
           <div className="bg-white rounded-3xl overflow-hidden border-4 border-kakao-brown shadow-xl">
