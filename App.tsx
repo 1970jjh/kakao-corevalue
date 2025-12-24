@@ -11,7 +11,6 @@ import WorkWay from './components/WorkWay';
 import Talent from './components/Talent';
 import Voices from './components/Voices';
 import Footer from './components/Footer';
-import CustomCursor from './components/CustomCursor';
 import AICultureAssistant from './components/AICultureAssistant';
 import StageCompleteModal from './components/StageCompleteModal';
 import FinalCompleteModal from './components/FinalCompleteModal';
@@ -271,7 +270,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen">
-      <CustomCursor />
       <Header 
         toggleDarkMode={toggleDarkMode} 
         isDarkMode={darkMode} 
