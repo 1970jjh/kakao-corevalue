@@ -13,7 +13,7 @@ import Voices from './components/Voices';
 import Footer from './components/Footer';
 import AICultureAssistant from './components/AICultureAssistant';
 import StageCompleteModal from './components/StageCompleteModal';
-import FinalCompleteModal from './components/FinalCompleteModal';
+import FinalCompleteSection from './components/FinalCompleteSection';
 import EventPopup from './components/EventPopup';
 import { addLeaderboardEntry } from './services/firebase';
 
@@ -51,7 +51,7 @@ const App: React.FC = () => {
   const [userName, setUserName] = useState<string>('');
   const [completionTime, setCompletionTime] = useState<string>('');
   const [completionDate, setCompletionDate] = useState<string>('');
-  const [showFinalModal, setShowFinalModal] = useState<boolean>(false);
+  const [showFinalSection, setShowFinalSection] = useState<boolean>(false);
 
   const [modal, setModal] = useState<CompletionInfo>({
     isOpen: false,
@@ -206,8 +206,11 @@ const App: React.FC = () => {
       console.error('Failed to save to leaderboard:', error);
     }
 
-    // Show final modal
-    setShowFinalModal(true);
+    // Show final section and scroll to it
+    setShowFinalSection(true);
+    setTimeout(() => {
+      document.getElementById('final-complete')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   };
 
   const LockedOverlay = ({ message, level }: { message: string, level: string }) => (
@@ -324,6 +327,16 @@ const App: React.FC = () => {
            />
            <Voices />
         </div>
+
+        {/* Final Complete Section - 메인 페이지 하단에 표시 */}
+        <FinalCompleteSection
+          show={showFinalSection}
+          userName={userName}
+          userPhoto={userPhoto}
+          totalPoints={totalPoints}
+          completionTime={completionTime}
+          completionDate={completionDate}
+        />
       </main>
 
       <Footer />
@@ -336,15 +349,6 @@ const App: React.FC = () => {
         nextMissionTitle={modal.nextMissionTitle}
         nextMissionDesc={modal.nextMissionDesc}
         onNext={proceedToNextStage}
-      />
-
-      <FinalCompleteModal
-        isOpen={showFinalModal}
-        userName={userName}
-        userPhoto={userPhoto}
-        totalPoints={totalPoints}
-        completionTime={completionTime}
-        completionDate={completionDate}
       />
 
       <EventPopup />
