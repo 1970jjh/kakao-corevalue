@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import html2canvas from 'html2canvas';
-import { addGuestbookEntry, subscribeToGuestbook, subscribeToLeaderboard, GuestbookEntry, LeaderboardEntry } from '../services/firebase';
+import { addGuestbookEntry, subscribeToGuestbook, subscribeToLeaderboard, uploadClearCardImage, GuestbookEntry, LeaderboardEntry } from '../services/firebase';
 
 interface FinalCompleteModalProps {
   isOpen: boolean;
@@ -20,11 +20,10 @@ const FinalCompleteModal: React.FC<FinalCompleteModalProps> = ({
   completionDate
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [showGuestbookInput, setShowGuestbookInput] = useState(false);
-  const [rating, setRating] = useState(8);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadComplete, setDownloadComplete] = useState(false);
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
   const [guestbookEntries, setGuestbookEntries] = useState<GuestbookEntry[]>([]);
   const [leaderboardEntries, setLeaderboardEntries] = useState<LeaderboardEntry[]>([]);
 
@@ -39,23 +38,54 @@ const FinalCompleteModal: React.FC<FinalCompleteModalProps> = ({
     }
   }, [isOpen]);
 
+  // 이미지 다운로드 + Firebase Storage 업로드
   const handleDownload = async () => {
-    if (!cardRef.current) return;
+    if (!cardRef.current || isDownloading) return;
+
+    setIsDownloading(true);
     try {
+      // html2canvas로 이미지 캡처
       const canvas = await html2canvas(cardRef.current, {
         scale: 2,
         backgroundColor: '#FEE500',
         useCORS: true
       });
+
+      // JPG로 변환
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+
+      // 파일명 생성
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+      const fileName = `${userName}+${dateStr}.JPG`;
+
+      // 로컬 다운로드
       const link = document.createElement('a');
-      link.download = `kakao-mission-clear-${userName}.png`;
-      link.href = canvas.toDataURL('image/png');
+      link.download = fileName;
+      link.href = dataUrl;
       link.click();
+
+      // Blob으로 변환하여 Firebase Storage에 업로드
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+
+      try {
+        await uploadClearCardImage(blob, userName);
+        console.log('Image uploaded to Firebase Storage');
+      } catch (uploadError) {
+        console.log('Storage upload skipped (Firebase not configured)');
+      }
+
+      setDownloadComplete(true);
     } catch (error) {
+      console.error('Download error:', error);
       alert('📸 스크린샷으로 저장해주세요!\n\niPhone: 전원 + 볼륨업\nAndroid: 전원 + 볼륨다운');
+    } finally {
+      setIsDownloading(false);
     }
   };
 
+  // 방명록 저장
   const handleSubmitGuestbook = async () => {
     if (!message.trim()) {
       alert('방명록 내용을 입력해주세요.');
@@ -65,12 +95,11 @@ const FinalCompleteModal: React.FC<FinalCompleteModalProps> = ({
     try {
       await addGuestbookEntry({
         userName,
-        rating,
+        rating: 10,
         message: message.trim(),
         totalPoints,
         completionTime
       });
-      setIsSubmitted(true);
       setMessage('');
     } catch (error) {
       console.error('Error:', error);
@@ -87,76 +116,72 @@ const FinalCompleteModal: React.FC<FinalCompleteModalProps> = ({
       <div className="min-h-screen py-10 px-4">
         <div className="max-w-4xl mx-auto">
 
-          {/* Mission All Clear Card - 다운로드 대상 */}
+          {/* ========== 섹션 1: Mission Clear 카드 (다운로드 대상) ========== */}
           <div
             ref={cardRef}
             className="bg-kakao-yellow rounded-[40px] p-8 mb-6 shadow-2xl"
           >
             {/* 헤더 */}
             <div className="text-center mb-6">
-              <div className="text-6xl mb-2">🏆</div>
+              <div className="text-5xl mb-2">🏆</div>
               <h1 className="text-2xl md:text-3xl font-black text-kakao-brown">
                 MISSION ALL CLEAR!
               </h1>
             </div>
 
-            {/* 사원증 + 환영사 */}
-            <div className="flex flex-col md:flex-row gap-6 items-center">
+            {/* 사원증 + CEO 환영사 */}
+            <div className="flex flex-col md:flex-row gap-6 items-stretch">
               {/* 사원증 */}
-              <div className="w-full md:w-1/2 bg-white rounded-3xl overflow-hidden border-4 border-kakao-brown shadow-xl">
+              <div className="w-full md:w-1/2 bg-white rounded-3xl overflow-hidden border-4 border-kakao-brown shadow-xl flex flex-col">
                 <div className="bg-kakao-brown py-3 text-center">
                   <span className="text-kakao-yellow font-black tracking-[0.2em]">KAKAO</span>
                   <p className="text-kakao-yellow/60 text-[9px] uppercase">Honorary Crew ID</p>
                 </div>
-                <div className="p-6 flex flex-col items-center bg-gradient-to-b from-white to-yellow-50">
-                  <div className="w-24 h-24 rounded-full border-4 border-kakao-brown overflow-hidden mb-3 shadow-lg">
+                <div className="p-6 flex flex-col items-center bg-gradient-to-b from-white to-yellow-50 flex-1">
+                  <div className="w-20 h-20 rounded-full border-4 border-kakao-brown overflow-hidden mb-3 shadow-lg">
                     <img
                       src={userPhoto || "https://t1.kakaocdn.net/kakaocorp/kakaocorp/admin/service/a85d0594019200001.png"}
                       alt="User"
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <h3 className="text-2xl font-black text-kakao-brown">{userName}</h3>
-                  <span className="bg-kakao-brown text-kakao-yellow px-3 py-1 rounded-full text-[10px] font-black mt-2 mb-4">
+                  <h3 className="text-xl font-black text-kakao-brown">{userName}</h3>
+                  <span className="bg-kakao-brown text-kakao-yellow px-3 py-1 rounded-full text-[10px] font-black mt-2 mb-3">
                     명예 크루
                   </span>
-                  <div className="w-full space-y-2 text-sm">
-                    <div className="flex justify-between bg-kakao-yellow/20 px-3 py-2 rounded-lg">
-                      <span className="text-kakao-brown/60 font-bold">Points</span>
+                  <div className="w-full space-y-1.5 text-sm">
+                    <div className="flex justify-between bg-kakao-yellow/20 px-3 py-1.5 rounded-lg">
+                      <span className="text-kakao-brown/60 font-bold text-xs">Points</span>
                       <span className="font-black text-blue-600">{totalPoints.toLocaleString()} P</span>
                     </div>
-                    <div className="flex justify-between bg-kakao-yellow/20 px-3 py-2 rounded-lg">
-                      <span className="text-kakao-brown/60 font-bold">Time</span>
+                    <div className="flex justify-between bg-kakao-yellow/20 px-3 py-1.5 rounded-lg">
+                      <span className="text-kakao-brown/60 font-bold text-xs">Time</span>
                       <span className="font-black text-kakao-brown">{completionTime}</span>
                     </div>
-                    <div className="flex justify-between bg-kakao-yellow/20 px-3 py-2 rounded-lg">
-                      <span className="text-kakao-brown/60 font-bold">Date</span>
+                    <div className="flex justify-between bg-kakao-yellow/20 px-3 py-1.5 rounded-lg">
+                      <span className="text-kakao-brown/60 font-bold text-xs">Date</span>
                       <span className="font-black text-kakao-brown">{completionDate}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* 환영사 */}
-              <div className="w-full md:w-1/2 text-kakao-brown">
-                <h2 className="text-xl font-black mb-4 border-b-2 border-kakao-brown pb-2">
-                  🎉 환영합니다, {userName}님!
+              {/* CEO 환영사 (텍스트 절반으로 축소) */}
+              <div className="w-full md:w-1/2 bg-white/90 rounded-3xl p-6 flex flex-col justify-center">
+                <h2 className="text-lg font-black text-kakao-brown mb-3 border-b-2 border-kakao-brown pb-2">
+                  🎉 환영합니다!
                 </h2>
-                <div className="text-sm leading-relaxed space-y-3">
-                  <p>
-                    카카오 핵심가치 내재화 미션을<br/>
-                    <strong>성공적으로 완료</strong>하셨습니다.
+                <div className="text-sm text-kakao-brown leading-relaxed">
+                  <p className="mb-2">
+                    <strong>{userName}</strong>님,<br/>
+                    핵심가치 내재화 미션을 완료하셨습니다.
                   </p>
-                  <p>
-                    본질에 집중하고, 함께 성장하며,<br/>
-                    세상을 바꾸는 크루가 되어주세요.
-                  </p>
-                  <p className="text-kakao-brown/70 text-xs pt-2">
+                  <p className="text-kakao-brown/70 text-xs italic">
                     "기술과 사람으로 더 나은 세상을"
                   </p>
                 </div>
-                <div className="mt-4 pt-4 border-t border-kakao-brown/20 text-xs text-kakao-brown/60">
-                  핵심가치 내재화 with AI 수료
+                <div className="mt-4 pt-3 border-t border-kakao-brown/20 text-[10px] text-kakao-brown/50 text-right">
+                  핵심가치 내재화 with AI
                 </div>
               </div>
             </div>
@@ -165,105 +190,85 @@ const FinalCompleteModal: React.FC<FinalCompleteModalProps> = ({
           {/* 다운로드 버튼 */}
           <button
             onClick={handleDownload}
-            className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-xl mb-4 hover:bg-blue-700 transition-all flex items-center justify-center gap-3 shadow-xl"
+            disabled={isDownloading}
+            className={`w-full py-5 rounded-2xl font-black text-xl mb-10 transition-all flex items-center justify-center gap-3 shadow-xl ${
+              downloadComplete
+                ? 'bg-green-600 text-white'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            } disabled:opacity-70`}
           >
-            <i className="fas fa-download"></i>
-            Mission Clear 카드 다운로드
+            {isDownloading ? (
+              <>
+                <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+                저장 중...
+              </>
+            ) : downloadComplete ? (
+              <>
+                <i className="fas fa-check"></i>
+                다운로드 완료!
+              </>
+            ) : (
+              <>
+                <i className="fas fa-download"></i>
+                Mission Clear 카드 다운로드
+              </>
+            )}
           </button>
 
-          {/* 방명록 남기기 버튼 / 입력 영역 */}
-          {!showGuestbookInput && !isSubmitted ? (
-            <button
-              onClick={() => setShowGuestbookInput(true)}
-              className="w-full bg-kakao-brown text-kakao-yellow py-5 rounded-2xl font-black text-xl mb-8 hover:bg-black transition-all flex items-center justify-center gap-3"
-            >
-              <i className="fas fa-pen-fancy"></i>
-              방명록 남기기
-            </button>
-          ) : !isSubmitted ? (
-            <div className="bg-white rounded-3xl p-6 mb-8 border-4 border-kakao-brown">
-              <h3 className="text-lg font-black text-kakao-brown mb-4">📝 방명록 작성</h3>
+          {/* ========== 섹션 2: 방명록 남기기 ========== */}
+          <div className="bg-white rounded-3xl p-6 mb-8 border-4 border-kakao-brown shadow-xl">
+            <h3 className="text-xl font-black text-kakao-brown mb-4 flex items-center gap-2">
+              <span className="text-2xl">📝</span> 방명록에 기록 남기기
+            </h3>
 
-              {/* 평점 */}
-              <div className="mb-4">
-                <p className="text-xs font-bold text-gray-400 mb-2">평가 점수</p>
-                <div className="flex gap-1 flex-wrap">
-                  {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                    <button
-                      key={n}
-                      onClick={() => setRating(n)}
-                      className={`w-8 h-8 rounded-full font-bold text-sm transition-all ${
-                        rating >= n ? 'bg-kakao-yellow text-kakao-brown' : 'bg-gray-100 text-gray-400'
-                      }`}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 메시지 입력 */}
+            {/* 입력 영역 */}
+            <div className="mb-4">
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="핵심가치 내재화 체험 후기를 남겨주세요!"
-                className="w-full p-4 border-2 border-gray-200 rounded-xl resize-none h-24 mb-4 outline-none focus:border-kakao-yellow"
+                className="w-full p-4 border-2 border-gray-200 rounded-xl resize-none h-24 outline-none focus:border-kakao-yellow text-gray-700"
               />
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowGuestbookInput(false)}
-                  className="flex-1 bg-gray-200 text-gray-600 py-3 rounded-xl font-bold"
-                >
-                  취소
-                </button>
-                <button
-                  onClick={handleSubmitGuestbook}
-                  disabled={isSubmitting}
-                  className="flex-1 bg-kakao-brown text-kakao-yellow py-3 rounded-xl font-bold disabled:opacity-50"
-                >
-                  {isSubmitting ? '등록 중...' : 'Send'}
-                </button>
-              </div>
             </div>
-          ) : (
-            <div className="bg-green-100 rounded-2xl p-6 mb-8 text-center border-2 border-green-500">
-              <span className="text-4xl">✅</span>
-              <p className="font-black text-green-600 mt-2">방명록이 등록되었습니다!</p>
-            </div>
-          )}
 
-          {/* 크루들의 생생한 한마디 */}
-          <div className="bg-white/10 rounded-3xl p-6 mb-8">
-            <h3 className="text-center text-lg font-black text-kakao-yellow mb-4">
-              💬 크루들의 생생한 한마디
-            </h3>
-            <div className="space-y-3 max-h-64 overflow-y-auto">
-              {guestbookEntries.length === 0 ? (
-                <p className="text-center text-white/50 py-8">아직 후기가 없습니다. 첫 번째 후기를 남겨주세요!</p>
-              ) : (
-                guestbookEntries.map((entry) => (
-                  <div key={entry.id} className="bg-white rounded-xl p-4 flex items-start gap-3">
-                    <div className="w-10 h-10 bg-kakao-yellow rounded-full flex items-center justify-center text-kakao-brown font-black shrink-0">
-                      {entry.userName.charAt(0)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-black text-kakao-brown">{entry.userName}</span>
-                        <span className="bg-kakao-yellow/50 text-kakao-brown px-2 py-0.5 rounded-full text-xs font-bold">
-                          {entry.rating}점
-                        </span>
+            <button
+              onClick={handleSubmitGuestbook}
+              disabled={isSubmitting || !message.trim()}
+              className="w-full bg-kakao-brown text-kakao-yellow py-4 rounded-xl font-black text-lg hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? '저장 중...' : '저장'}
+            </button>
+
+            {/* 방명록 카드 목록 */}
+            <div className="mt-6 pt-6 border-t-2 border-gray-100">
+              <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">
+                💬 크루들의 생생한 한마디
+              </h4>
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {guestbookEntries.length === 0 ? (
+                  <p className="text-center text-gray-400 py-8">아직 후기가 없습니다. 첫 번째 후기를 남겨주세요!</p>
+                ) : (
+                  guestbookEntries.map((entry) => (
+                    <div key={entry.id} className="bg-gray-50 rounded-xl p-4 flex items-start gap-3 border border-gray-100">
+                      <div className="w-10 h-10 bg-kakao-yellow rounded-full flex items-center justify-center text-kakao-brown font-black shrink-0">
+                        {entry.userName.charAt(0)}
                       </div>
-                      <p className="text-sm text-gray-600 break-words">"{entry.message}"</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-black text-kakao-brown">{entry.userName}</span>
+                          <span className="text-xs text-gray-400">{entry.totalPoints.toLocaleString()}P</span>
+                        </div>
+                        <p className="text-sm text-gray-600 break-words">"{entry.message}"</p>
+                      </div>
                     </div>
-                  </div>
-                ))
-              )}
+                  ))
+                )}
+              </div>
             </div>
           </div>
 
-          {/* 리더보드 Top 20 */}
-          <div className="bg-white rounded-3xl overflow-hidden border-4 border-kakao-brown">
+          {/* ========== 섹션 3: 리더보드 Top 20 ========== */}
+          <div className="bg-white rounded-3xl overflow-hidden border-4 border-kakao-brown shadow-xl">
             <div className="bg-kakao-brown text-kakao-yellow py-4 px-6 text-center">
               <h3 className="text-xl font-black">🏅 명예의 전당 TOP 20</h3>
             </div>
@@ -272,8 +277,8 @@ const FinalCompleteModal: React.FC<FinalCompleteModalProps> = ({
             <div className="bg-kakao-brown/10 py-3 px-4 flex items-center text-xs font-black text-kakao-brown/60 uppercase">
               <div className="w-12 text-center">순위</div>
               <div className="flex-1">이름</div>
-              <div className="w-24 text-right">Points</div>
-              <div className="w-24 text-right">Time</div>
+              <div className="w-28 text-right">Total Points</div>
+              <div className="w-24 text-right">Clear Time</div>
             </div>
 
             <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
@@ -286,7 +291,7 @@ const FinalCompleteModal: React.FC<FinalCompleteModalProps> = ({
                   return (
                     <div
                       key={entry.id}
-                      className={`flex items-center py-3 px-4 ${isMe ? 'bg-kakao-yellow/20' : ''}`}
+                      className={`flex items-center py-3 px-4 ${isMe ? 'bg-kakao-yellow/30' : ''}`}
                     >
                       <div className="w-12 text-center">
                         <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-black text-sm ${
@@ -302,10 +307,10 @@ const FinalCompleteModal: React.FC<FinalCompleteModalProps> = ({
                         {entry.userName}
                         {isMe && <span className="ml-2 bg-blue-600 text-white px-2 py-0.5 rounded-full text-[10px]">YOU</span>}
                       </div>
-                      <div className="w-24 text-right font-black text-blue-600">
-                        {entry.totalPoints.toLocaleString()}
+                      <div className="w-28 text-right font-black text-blue-600">
+                        {entry.totalPoints.toLocaleString()} P
                       </div>
-                      <div className="w-24 text-right text-sm text-gray-400">
+                      <div className="w-24 text-right text-sm text-gray-500">
                         {entry.completionTime}
                       </div>
                     </div>

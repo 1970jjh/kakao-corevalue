@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, onSnapshot, Timestamp } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // Firebase 설정 - 환경변수에서 가져오거나 직접 설정
 const firebaseConfig = {
@@ -14,6 +15,7 @@ const firebaseConfig = {
 // Firebase 초기화
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 // 타입 정의
 export interface GuestbookEntry {
@@ -116,4 +118,32 @@ export const subscribeToLeaderboard = (callback: (entries: LeaderboardEntry[]) =
   });
 };
 
-export { db };
+// 이미지를 Firebase Storage에 업로드
+export const uploadClearCardImage = async (
+  imageBlob: Blob,
+  userName: string
+): Promise<string> => {
+  try {
+    // 파일명 생성: (이름)+(년월일시분).JPG
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+    const fileName = `${userName}+${dateStr}.JPG`;
+
+    // Storage 참조 생성
+    const storageRef = ref(storage, `clear-cards/${fileName}`);
+
+    // 업로드
+    await uploadBytes(storageRef, imageBlob, {
+      contentType: 'image/jpeg'
+    });
+
+    // 다운로드 URL 반환
+    const downloadURL = await getDownloadURL(storageRef);
+    return downloadURL;
+  } catch (error) {
+    console.error('Error uploading image to storage:', error);
+    throw error;
+  }
+};
+
+export { db, storage };
