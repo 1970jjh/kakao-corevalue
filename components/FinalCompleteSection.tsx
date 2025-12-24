@@ -122,34 +122,34 @@ const FinalCompleteSection: React.FC<FinalCompleteSectionProps> = ({
 
           <div className="flex flex-col md:flex-row gap-6 items-stretch">
             {/* 사원증 */}
-            <div className="w-full md:w-1/2 bg-white rounded-3xl overflow-hidden border-4 border-kakao-brown shadow-xl flex flex-col">
+            <div className="w-full md:w-[380px] bg-white rounded-3xl overflow-hidden border-4 border-kakao-brown shadow-xl flex flex-col shrink-0">
               <div className="bg-kakao-brown py-3 text-center">
                 <span className="text-kakao-yellow font-black tracking-[0.2em]">KAKAO</span>
                 <p className="text-kakao-yellow/60 text-[9px] uppercase">Honorary Crew ID</p>
               </div>
               <div className="p-6 flex flex-col items-center bg-gradient-to-b from-white to-yellow-50 flex-1">
-                <div className="w-20 h-20 rounded-full border-4 border-kakao-brown overflow-hidden mb-3 shadow-lg">
+                <div className="w-24 h-24 rounded-full border-4 border-kakao-brown overflow-hidden mb-4 shadow-lg">
                   <img
                     src={userPhoto || "https://t1.kakaocdn.net/kakaocorp/kakaocorp/admin/service/a85d0594019200001.png"}
                     alt="User"
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <h3 className="text-xl font-black text-kakao-brown">{userName}</h3>
-                <span className="bg-kakao-brown text-kakao-yellow px-3 py-1 rounded-full text-[10px] font-black mt-2 mb-3">
+                <h3 className="text-2xl font-black text-kakao-brown">{userName}</h3>
+                <span className="bg-kakao-brown text-kakao-yellow px-4 py-1.5 rounded-full text-xs font-black mt-2 mb-4">
                   명예 크루
                 </span>
-                <div className="w-full space-y-1.5 text-sm">
-                  <div className="flex justify-between bg-kakao-yellow/20 px-3 py-1.5 rounded-lg">
-                    <span className="text-kakao-brown/60 font-bold text-xs">Points</span>
+                <div className="w-full space-y-2 text-sm">
+                  <div className="flex justify-between bg-kakao-yellow/20 px-4 py-2 rounded-lg">
+                    <span className="text-kakao-brown/60 font-bold">Points</span>
                     <span className="font-black text-blue-600">{totalPoints.toLocaleString()} P</span>
                   </div>
-                  <div className="flex justify-between bg-kakao-yellow/20 px-3 py-1.5 rounded-lg">
-                    <span className="text-kakao-brown/60 font-bold text-xs">Time</span>
+                  <div className="flex justify-between bg-kakao-yellow/20 px-4 py-2 rounded-lg">
+                    <span className="text-kakao-brown/60 font-bold">Time</span>
                     <span className="font-black text-kakao-brown">{completionTime}</span>
                   </div>
-                  <div className="flex justify-between bg-kakao-yellow/20 px-3 py-1.5 rounded-lg">
-                    <span className="text-kakao-brown/60 font-bold text-xs">Date</span>
+                  <div className="flex justify-between bg-kakao-yellow/20 px-4 py-2 rounded-lg">
+                    <span className="text-kakao-brown/60 font-bold">Date</span>
                     <span className="font-black text-kakao-brown">{completionDate}</span>
                   </div>
                 </div>
@@ -157,12 +157,22 @@ const FinalCompleteSection: React.FC<FinalCompleteSectionProps> = ({
             </div>
 
             {/* CEO 환영사 */}
-            <div className="w-full md:w-1/2 bg-white/90 rounded-3xl p-6 flex flex-col justify-center">
-              <h2 className="text-lg font-black text-kakao-brown mb-3">
-                🎉 환영합니다, {userName}님!
+            <div className="w-full md:flex-1 bg-white/90 rounded-3xl p-8 flex flex-col justify-center items-center text-center">
+              <div className="text-6xl mb-4">🎉</div>
+              <h2 className="text-2xl font-black text-kakao-brown mb-4">
+                환영합니다, {userName}님!
               </h2>
-              <p className="text-xs text-kakao-brown/70 italic">
-                "기술과 사람으로 더 나은 세상을"
+              <p className="text-lg text-kakao-brown/80 mb-6 leading-relaxed">
+                카카오 핵심가치 내재화 여정을<br/>
+                성공적으로 완료하셨습니다.
+              </p>
+              <div className="bg-kakao-yellow/30 rounded-2xl px-6 py-4 border-2 border-kakao-yellow">
+                <p className="text-sm text-kakao-brown/70 italic">
+                  "기술과 사람으로 더 나은 세상을"
+                </p>
+              </div>
+              <p className="mt-6 text-xs text-kakao-brown/50">
+                핵심가치 내재화 with AI
               </p>
             </div>
           </div>
