@@ -64,12 +64,14 @@ const InterviewSimulation: React.FC<InterviewSimulationProps> = ({ userPhoto, to
       [평가 및 출력 규칙]
       사용자의 답변이 들어오면 반드시 평가 태그를 앞에 붙이세요.
       형식: <<<SCORE | 항목:점수 | 이유>>>
-      항목 키워드: Why, Solver, Grow, AI
-      점수: +4 ~ +12 (훌륭함), -1 ~ -2 (부족함), +2 (중립/보통)
+      항목 키워드: Why, Solver, Grow, AI (반드시 영문 키워드 사용)
+      점수: 항상 양수만 부여 (+3 ~ +12)
 
-      [중요] 지원자를 격려하는 분위기로 후하게 평가하세요. 답변에서 긍정적인 면을 찾아 점수를 주세요.
-      대부분의 답변에서 +5 이상의 점수를 주고, 특별히 좋은 답변은 +8~+12점을 주세요.
-      감점은 명백히 부적절한 답변에만 최소한으로 적용하세요.
+      [중요]
+      - 지원자를 격려하며 긍정적으로 평가하세요.
+      - 모든 답변에서 좋은 점을 찾아 +5 이상의 점수를 주세요.
+      - 훌륭한 답변은 +8~+12점을 주세요.
+      - 감점(음수 점수)은 절대 주지 마세요. 부족한 답변도 최소 +3점을 주세요.
 
       카카오스러운 수평적 분위기(영어 이름 사용 등)로 대화하세요. 질문은 한 번에 하나씩만 하세요.
     `;
@@ -128,22 +130,38 @@ const InterviewSimulation: React.FC<InterviewSimulationProps> = ({ userPhoto, to
   };
 
   const parseResponse = (text: string) => {
-    const regex = /<<<SCORE\s*\|\s*(.*?):(.*?)\s*\|\s*(.*?)>>>/gi;
+    // 더 유연한 정규식: 다양한 형식 지원
+    const regex = /<<<\s*SCORE\s*\|\s*([^:|]+)\s*:\s*([+-]?\d+)\s*\|\s*([^>]+)>>>/gi;
     let match;
     const scoresFound: any[] = [];
     let cleanText = text;
 
     while ((match = regex.exec(text)) !== null) {
       const categoryRaw = match[1].trim().toLowerCase();
-      const val = parseInt(match[2].trim());
+      let val = parseInt(match[2].trim());
       const reason = match[3].trim();
-      
-      let key = 'why';
-      if (categoryRaw.includes('solv')) key = 'solver';
-      else if (categoryRaw.includes('grow')) key = 'grow';
-      else if (categoryRaw.includes('ai')) key = 'ai';
-      
-      scoresFound.push({ key, val, reason });
+
+      // 감점 제거: 음수 점수는 0으로 처리
+      if (val < 0) {
+        val = 0;
+      }
+
+      // 카테고리 매칭 개선 (한글 + 영문 키워드 지원)
+      let key = 'why'; // 기본값
+      if (categoryRaw.includes('solv') || categoryRaw.includes('문제') || categoryRaw.includes('해결')) {
+        key = 'solver';
+      } else if (categoryRaw.includes('grow') || categoryRaw.includes('함께') || categoryRaw.includes('성장') || categoryRaw.includes('together')) {
+        key = 'grow';
+      } else if (categoryRaw.includes('ai') || categoryRaw.includes('native') || categoryRaw.includes('기술')) {
+        key = 'ai';
+      } else if (categoryRaw.includes('why') || categoryRaw.includes('본질') || categoryRaw.includes('탐구')) {
+        key = 'why';
+      }
+
+      // 점수가 0보다 클 때만 추가
+      if (val > 0) {
+        scoresFound.push({ key, val, reason });
+      }
       cleanText = cleanText.replace(match[0], '');
     }
     return { hasScore: scoresFound.length > 0, scoreData: scoresFound, text: cleanText.trim() };
