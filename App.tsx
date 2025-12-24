@@ -14,6 +14,11 @@ import Footer from './components/Footer';
 import CustomCursor from './components/CustomCursor';
 import AICultureAssistant from './components/AICultureAssistant';
 import StageCompleteModal from './components/StageCompleteModal';
+import FinalCompleteModal from './components/FinalCompleteModal';
+import Guestbook from './components/Guestbook';
+import HonoraryIdCard from './components/HonoraryIdCard';
+import Leaderboard from './components/Leaderboard';
+import { addLeaderboardEntry } from './services/firebase';
 
 export type UnlockState = {
   entryQuest: boolean;
@@ -44,6 +49,15 @@ const App: React.FC = () => {
     values: false,
     workWay: false,
   });
+
+  // Final completion flow states
+  const [userName, setUserName] = useState<string>('');
+  const [completionTime, setCompletionTime] = useState<string>('');
+  const [completionDate, setCompletionDate] = useState<string>('');
+  const [showFinalModal, setShowFinalModal] = useState<boolean>(false);
+  const [showGuestbook, setShowGuestbook] = useState<boolean>(false);
+  const [showIdCard, setShowIdCard] = useState<boolean>(false);
+  const [showLeaderboard, setShowLeaderboard] = useState<boolean>(false);
 
   const [modal, setModal] = useState<CompletionInfo>({
     isOpen: false,
@@ -170,6 +184,54 @@ const App: React.FC = () => {
     }
   };
 
+  // Handle interview completion - triggers final celebration
+  const handleInterviewComplete = async (name: string) => {
+    setUserName(name);
+
+    // Calculate completion time
+    const endTime = Date.now();
+    const elapsed = startTime ? endTime - startTime : 0;
+    const minutes = Math.floor(elapsed / 60000);
+    const seconds = Math.floor((elapsed % 60000) / 1000);
+    const timeStr = `${minutes}분 ${seconds}초`;
+    setCompletionTime(timeStr);
+
+    // Set completion date
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
+    setCompletionDate(dateStr);
+
+    // Save to leaderboard
+    try {
+      await addLeaderboardEntry({
+        userName: name,
+        totalPoints,
+        completionTime: timeStr,
+      });
+    } catch (error) {
+      console.error('Failed to save to leaderboard:', error);
+    }
+
+    // Show final modal
+    setShowFinalModal(true);
+  };
+
+  const handleProceedToGuestbook = () => {
+    setShowFinalModal(false);
+    setShowGuestbook(true);
+    setTimeout(() => {
+      document.getElementById('guestbook-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
+  };
+
+  const handleGuestbookComplete = () => {
+    setShowIdCard(true);
+    setShowLeaderboard(true);
+    setTimeout(() => {
+      document.getElementById('idcard-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
+  };
+
   const LockedOverlay = ({ message, level }: { message: string, level: string }) => (
     <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/60 dark:bg-kakao-black/80 backdrop-blur-xl transition-all duration-1000">
       <div className="bg-white dark:bg-gray-800 p-12 rounded-[50px] shadow-[0_20px_60px_rgba(0,0,0,0.2)] border-4 border-kakao-yellow flex flex-col items-center group max-w-sm">
@@ -276,9 +338,49 @@ const App: React.FC = () => {
 
         {/* Final Reward Content */}
         <div className={unlocked.workWay ? "opacity-100 translate-y-0 transition-all duration-1000" : "opacity-0 h-0 overflow-hidden"}>
-           <Talent userPhoto={userPhoto} totalPoints={totalPoints} startTime={startTime} onAddPoints={addPoints} />
+           <Talent
+             userPhoto={userPhoto}
+             totalPoints={totalPoints}
+             startTime={startTime}
+             onAddPoints={addPoints}
+             onInterviewComplete={handleInterviewComplete}
+           />
            <Voices />
         </div>
+
+        {/* Guestbook Section */}
+        {showGuestbook && (
+          <div id="guestbook-section" className="animate-in slide-in-from-bottom duration-700">
+            <Guestbook
+              userName={userName}
+              totalPoints={totalPoints}
+              completionTime={completionTime}
+              onComplete={handleGuestbookComplete}
+            />
+          </div>
+        )}
+
+        {/* Honorary ID Card Section */}
+        {showIdCard && (
+          <div id="idcard-section" className="animate-in slide-in-from-bottom duration-700">
+            <HonoraryIdCard
+              userName={userName}
+              userPhoto={userPhoto}
+              totalPoints={totalPoints}
+              completionDate={completionDate}
+            />
+          </div>
+        )}
+
+        {/* Leaderboard Section */}
+        {showLeaderboard && (
+          <div id="leaderboard-section" className="animate-in slide-in-from-bottom duration-700">
+            <Leaderboard
+              currentUserName={userName}
+              currentUserPoints={totalPoints}
+            />
+          </div>
+        )}
       </main>
 
       <Footer />
@@ -291,6 +393,14 @@ const App: React.FC = () => {
         nextMissionTitle={modal.nextMissionTitle}
         nextMissionDesc={modal.nextMissionDesc}
         onNext={proceedToNextStage}
+      />
+
+      <FinalCompleteModal
+        isOpen={showFinalModal}
+        userName={userName}
+        totalPoints={totalPoints}
+        completionTime={completionTime}
+        onProceedToGuestbook={handleProceedToGuestbook}
       />
     </div>
   );

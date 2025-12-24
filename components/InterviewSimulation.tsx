@@ -8,6 +8,7 @@ interface InterviewSimulationProps {
   totalPointsAtStart: number;
   startTime: number | null;
   onAddPoints: (points: number) => void;
+  onInterviewComplete: (userName: string) => void;
 }
 
 const CATEGORY_MAP = {
@@ -17,7 +18,7 @@ const CATEGORY_MAP = {
   ai: 'AI Native'
 };
 
-const InterviewSimulation: React.FC<InterviewSimulationProps> = ({ userPhoto, totalPointsAtStart, startTime, onAddPoints }) => {
+const InterviewSimulation: React.FC<InterviewSimulationProps> = ({ userPhoto, totalPointsAtStart, startTime, onAddPoints, onInterviewComplete }) => {
   const [userName, setUserName] = useState('');
   const [gameState, setGameState] = useState<'intro' | 'playing' | 'result'>('intro');
   const [messages, setMessages] = useState<{ role: 'user' | 'bot', text: string, scoreInfos?: any[] }[]>([]);
@@ -204,6 +205,9 @@ const InterviewSimulation: React.FC<InterviewSimulationProps> = ({ userPhoto, to
     } catch (e) {
       setFinalFeedback("축하합니다! 카카오의 새로운 크루로 임명합니다.");
     }
+
+    // 인터뷰 완료 콜백 호출
+    onInterviewComplete(userName);
   };
 
   if (gameState === 'intro') {

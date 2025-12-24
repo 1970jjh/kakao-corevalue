@@ -7,9 +7,10 @@ interface TalentProps {
   totalPoints: number;
   startTime: number | null;
   onAddPoints: (points: number) => void;
+  onInterviewComplete: (userName: string) => void;
 }
 
-const Talent: React.FC<TalentProps> = ({ userPhoto, totalPoints, startTime, onAddPoints }) => {
+const Talent: React.FC<TalentProps> = ({ userPhoto, totalPoints, startTime, onAddPoints, onInterviewComplete }) => {
   const [showInterview, setShowInterview] = useState(false);
   const interviewRef = useRef<HTMLDivElement>(null);
 
@@ -72,11 +73,12 @@ const Talent: React.FC<TalentProps> = ({ userPhoto, totalPoints, startTime, onAd
 
         {showInterview && (
           <div ref={interviewRef} className="mt-16 animate-in slide-in-from-top-10 duration-700">
-            <InterviewSimulation 
-               userPhoto={userPhoto} 
+            <InterviewSimulation
+               userPhoto={userPhoto}
                totalPointsAtStart={totalPoints}
                startTime={startTime}
-               onAddPoints={onAddPoints} 
+               onAddPoints={onAddPoints}
+               onInterviewComplete={onInterviewComplete}
             />
           </div>
         )}
