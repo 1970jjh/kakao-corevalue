@@ -1,0 +1,6 @@
+
+{
+  "name": "Kakao 핵심가치 게임!",
+  "description": "An internal portal designed to introduce and internalize Kakao's mission, vision, core values, and work culture using interactive UI and Gemini AI assistance.",
+  "requestFramePermissions": ["camera"]
+}
