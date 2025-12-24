@@ -21,7 +21,6 @@ interface CardData {
   stageId: number | null;
   solved: boolean;
   flipped: boolean;
-  matched: boolean; // 현재 라운드에서 매칭됨
 }
 
 const WorkWayGame: React.FC<WorkWayGameProps> = ({ onPointsEarned, onComplete }) => {
@@ -30,9 +29,11 @@ const WorkWayGame: React.FC<WorkWayGameProps> = ({ onPointsEarned, onComplete })
   const [cards, setCards] = useState<CardData[]>([]);
   const [score, setScore] = useState(0);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [flipsRemaining, setFlipsRemaining] = useState(7);
-  const [foundChars, setFoundChars] = useState<string[]>([]); // 현재 라운드에서 찾은 글자들
+  const [flippedIndices, setFlippedIndices] = useState<number[]>([]); // 현재 라운드에서 뒤집은 카드들
   const [isProcessing, setIsProcessing] = useState(false);
+  const [attempts, setAttempts] = useState(0); // 시도 횟수
+
+  const currentStage = STAGES[currentStageIdx];
 
   const initBoard = useCallback(() => {
     let deck: any[] = [];
@@ -54,8 +55,7 @@ const WorkWayGame: React.FC<WorkWayGameProps> = ({ onPointsEarned, onComplete })
       ...item,
       id: index,
       solved: false,
-      flipped: false,
-      matched: false
+      flipped: false
     }));
 
     // 고정된 카드 배치
@@ -79,149 +79,141 @@ const WorkWayGame: React.FC<WorkWayGameProps> = ({ onPointsEarned, onComplete })
     setGameState('playing');
     setCurrentStageIdx(0);
     setScore(0);
-    setFlipsRemaining(STAGES[0].maxFlips);
-    setFoundChars([]);
+    setFlippedIndices([]);
+    setAttempts(0);
     initBoard();
-  };
-
-  const startNextStage = (nextIdx: number) => {
-    setCurrentStageIdx(nextIdx);
-    setFlipsRemaining(STAGES[nextIdx].maxFlips);
-    setFoundChars([]);
-
-    // 이전 스테이지에서 매칭된 카드들을 solved로 변경
-    setCards(prev => prev.map(card => ({
-      ...card,
-      flipped: card.solved ? true : false,
-      matched: false
-    })));
   };
 
   const handleCardClick = (index: number) => {
     if (gameState !== 'playing' || isProcessing) return;
     const card = cards[index];
-    if (card.solved || card.flipped || card.matched) return;
-    if (flipsRemaining <= 0) return;
+    if (card.solved || card.flipped) return;
 
-    setIsProcessing(true);
+    // 이미 최대 개수만큼 뒤집었으면 더 이상 뒤집을 수 없음
+    if (flippedIndices.length >= currentStage.maxFlips) return;
 
     // 카드 뒤집기
     const newCards = [...cards];
     newCards[index].flipped = true;
     setCards(newCards);
-    setFlipsRemaining(prev => prev - 1);
 
-    const currentStage = STAGES[currentStageIdx];
-    const targetChars = [...currentStage.chars];
+    const newFlippedIndices = [...flippedIndices, index];
+    setFlippedIndices(newFlippedIndices);
 
-    // 현재 스테이지의 글자인지 확인
-    if (card.stageId === currentStage.id) {
-      // 아직 찾지 않은 글자인지 확인
-      const remainingChars = targetChars.filter(c => !foundChars.includes(c) ||
-        targetChars.filter(x => x === c).length > foundChars.filter(x => x === c).length);
-
-      if (remainingChars.includes(card.char)) {
-        // 매칭 성공!
-        setTimeout(() => {
-          const updatedCards = [...cards];
-          updatedCards[index].flipped = true;
-          updatedCards[index].matched = true;
-          setCards(updatedCards);
-
-          const newFoundChars = [...foundChars, card.char];
-          setFoundChars(newFoundChars);
-
-          const bonus = 100;
-          setScore(prev => prev + bonus);
-          onPointsEarned(bonus);
-          setFeedback("NICE! +" + bonus);
-          setTimeout(() => setFeedback(null), 800);
-
-          // 모든 글자를 찾았는지 확인
-          if (newFoundChars.length >= currentStage.chars.length) {
-            handleStageComplete();
-          } else {
-            setIsProcessing(false);
-          }
-        }, 300);
-        return;
-      }
+    // 최대 개수에 도달하면 자동으로 체크
+    if (newFlippedIndices.length === currentStage.maxFlips) {
+      setIsProcessing(true);
+      setTimeout(() => checkSelection(newFlippedIndices), 800);
     }
-
-    // 매칭 실패 - 카드 다시 뒤집기
-    setTimeout(() => {
-      const updatedCards = [...cards];
-      updatedCards[index].flipped = false;
-      setCards(updatedCards);
-      setFeedback("MISS!");
-      setTimeout(() => setFeedback(null), 500);
-
-      // 남은 기회가 0이면 라운드 실패
-      if (flipsRemaining - 1 <= 0) {
-        handleStageFail();
-      } else {
-        setIsProcessing(false);
-      }
-    }, 600);
   };
 
-  const handleStageComplete = () => {
-    // 현재 스테이지의 매칭된 카드들을 solved로 변경
-    setCards(prev => prev.map(card => ({
-      ...card,
-      solved: card.matched ? true : card.solved,
-      matched: false
-    })));
+  const checkSelection = (indices: number[]) => {
+    const selectedCards = indices.map(idx => cards[idx]);
+    const targetChars = [...currentStage.chars];
 
-    const bonus = 300;
-    setScore(prev => prev + bonus);
+    // 선택한 카드들 중 현재 스테이지의 타겟 글자들이 모두 있는지 확인
+    const selectedTargetChars = selectedCards
+      .filter(card => card.stageId === currentStage.id)
+      .map(card => card.char);
+
+    // 타겟 글자 정렬해서 비교
+    const sortedTarget = [...targetChars].sort().join('');
+    const sortedSelected = [...selectedTargetChars].sort().join('');
+
+    if (sortedTarget === sortedSelected) {
+      handleSuccess(indices);
+    } else {
+      handleFailure(indices);
+    }
+  };
+
+  const handleSuccess = (indices: number[]) => {
+    // 현재 스테이지의 타겟 카드들만 solved로 변경
+    const newCards = [...cards];
+    indices.forEach(idx => {
+      if (newCards[idx].stageId === currentStage.id) {
+        newCards[idx].solved = true;
+      } else {
+        newCards[idx].flipped = false; // 타겟이 아닌 카드는 다시 뒤집기
+      }
+    });
+    setCards(newCards);
+
+    const bonus = 500;
+    const newScore = score + bonus;
+    setScore(newScore);
     onPointsEarned(bonus);
-    setFeedback("🎉 STAGE CLEAR! +300");
+    setFeedback("🎉 STAGE CLEAR! +500");
+    setFlippedIndices([]);
 
     setTimeout(() => {
       setFeedback(null);
       if (currentStageIdx + 1 < STAGES.length) {
-        startNextStage(currentStageIdx + 1);
+        setCurrentStageIdx(prev => prev + 1);
+        setAttempts(0);
         setIsProcessing(false);
       } else {
         setGameState('victory');
-        onComplete(score + bonus);
+        onComplete(newScore);
       }
     }, 1500);
   };
 
-  const handleStageFail = () => {
-    setFeedback("💥 기회 소진! 다시 시도...");
+  const handleFailure = (indices: number[]) => {
+    setAttempts(prev => prev + 1);
+    setFeedback("다시 시도해보세요!");
+
     setTimeout(() => {
-      // 현재 라운드의 매칭된 카드들만 유지, 나머지는 리셋
-      setCards(prev => prev.map(card => ({
-        ...card,
-        flipped: card.solved ? true : false,
-        matched: false
-      })));
-      setFoundChars([]);
-      setFlipsRemaining(STAGES[currentStageIdx].maxFlips);
+      // 모든 뒤집은 카드 다시 뒤집기
+      const newCards = [...cards];
+      indices.forEach(idx => {
+        if (!newCards[idx].solved) {
+          newCards[idx].flipped = false;
+        }
+      });
+      setCards(newCards);
+      setFlippedIndices([]);
       setFeedback(null);
       setIsProcessing(false);
-    }, 1500);
+    }, 1200);
+  };
+
+  // 선택 초기화 버튼
+  const handleReset = () => {
+    if (isProcessing) return;
+    const newCards = [...cards];
+    flippedIndices.forEach(idx => {
+      if (!newCards[idx].solved) {
+        newCards[idx].flipped = false;
+      }
+    });
+    setCards(newCards);
+    setFlippedIndices([]);
+  };
+
+  // 확인 버튼 (최대 개수 전에 수동으로 체크)
+  const handleCheck = () => {
+    if (isProcessing || flippedIndices.length < currentStage.chars.length) return;
+    setIsProcessing(true);
+    checkSelection(flippedIndices);
   };
 
   const getCardStyle = (card: CardData) => {
     if (card.solved) {
       return 'bg-kakao-yellow border-kakao-brown'; // 완료된 라운드 - 카카오 노란색
     }
-    if (card.matched) {
-      return 'bg-sky-100 border-sky-500'; // 현재 라운드에서 매칭됨 - 하늘색
+    if (card.flipped) {
+      return 'bg-sky-100 border-sky-500'; // 뒤집힌 카드 - 하늘색
     }
     return 'bg-white border-black';
   };
 
   const getCardTextStyle = (card: CardData) => {
     if (card.solved) {
-      return 'text-kakao-brown'; // 완료된 라운드 - 카카오 브라운
+      return 'text-kakao-brown';
     }
-    if (card.matched) {
-      return 'text-sky-600'; // 현재 라운드에서 매칭됨 - 하늘색
+    if (card.flipped) {
+      return 'text-sky-600';
     }
     return 'text-kakao-brown';
   };
@@ -242,23 +234,60 @@ const WorkWayGame: React.FC<WorkWayGameProps> = ({ onPointsEarned, onComplete })
           </div>
         </div>
 
-        {/* 점수 및 남은 기회 */}
-        <div className="flex gap-2 mb-8">
-          <div className="flex-1 bg-white dark:bg-gray-900 p-4 border-4 border-kakao-brown shadow-[4px_4px_0px_0px_rgba(60,30,30,1)]">
-            <span className="text-xs font-black text-gray-400 block">SCORE</span>
-            <span className="text-2xl font-black text-blue-600">{score}</span>
-          </div>
-          <div className="flex-1 bg-white dark:bg-gray-900 p-4 border-4 border-kakao-brown shadow-[4px_4px_0px_0px_rgba(60,30,30,1)]">
-            <span className="text-xs font-black text-gray-400 block">FLIPS</span>
-            <span className={`text-2xl font-black ${flipsRemaining <= 2 ? 'text-red-500' : 'text-green-600'}`}>{flipsRemaining}</span>
-          </div>
+        {/* 점수 */}
+        <div className="bg-white dark:bg-gray-900 p-4 border-4 border-kakao-brown mb-4 shadow-[4px_4px_0px_0px_rgba(60,30,30,1)]">
+          <span className="text-xs font-black text-gray-400 block">SCORE</span>
+          <span className="text-3xl font-black text-blue-600">{score}</span>
         </div>
+
+        {/* 현재 진행 상황 */}
+        {gameState === 'playing' && (
+          <div className="bg-blue-50 dark:bg-blue-900/30 p-4 border-2 border-blue-300 mb-4">
+            <p className="text-xs font-black text-blue-600 dark:text-blue-400 mb-2">
+              뒤집은 카드: {flippedIndices.length} / {currentStage.maxFlips}
+            </p>
+            <div className="flex gap-1">
+              {Array.from({ length: currentStage.maxFlips }).map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-4 h-4 border-2 ${i < flippedIndices.length ? 'bg-sky-500 border-sky-600' : 'bg-gray-200 border-gray-300'}`}
+                />
+              ))}
+            </div>
+            {flippedIndices.length > 0 && !isProcessing && (
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={handleReset}
+                  className="flex-1 bg-gray-500 text-white py-2 text-xs font-black border-2 border-black shadow-[2px_2px_0_0_black] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+                >
+                  초기화
+                </button>
+                {flippedIndices.length >= currentStage.chars.length && (
+                  <button
+                    onClick={handleCheck}
+                    className="flex-1 bg-blue-600 text-white py-2 text-xs font-black border-2 border-black shadow-[2px_2px_0_0_black] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+                  >
+                    확인하기
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 스테이지 진행 */}
         <div className="space-y-6 flex-1">
           {STAGES.map((stage, idx) => {
             const isCompleted = currentStageIdx > idx;
             const isCurrent = currentStageIdx === idx;
+
+            // 현재 스테이지에서 찾은 글자들
+            const foundChars = isCurrent
+              ? flippedIndices
+                  .map(i => cards[i])
+                  .filter(card => card && card.stageId === stage.id)
+                  .map(card => card.char)
+              : [];
 
             return (
               <div
@@ -304,7 +333,7 @@ const WorkWayGame: React.FC<WorkWayGameProps> = ({ onPointsEarned, onComplete })
           })}
         </div>
         <div className="mt-8 text-center text-xs font-bold text-gray-400 italic">
-          {feedback || (gameState === 'playing' ? `'${STAGES[currentStageIdx].word}' 글자를 찾으세요!` : '')}
+          {feedback || (gameState === 'playing' ? `'${currentStage.word}'의 ${currentStage.chars.length}글자를 찾으세요!` : '')}
         </div>
       </div>
 
@@ -321,9 +350,10 @@ const WorkWayGame: React.FC<WorkWayGameProps> = ({ onPointsEarned, onComplete })
                 <p className="font-black text-kakao-brown mb-2">🎯 게임 규칙</p>
                 <ul className="text-gray-600 space-y-1 text-xs">
                   <li>• 카드를 뒤집어 WORK WAY 글자를 찾으세요</li>
-                  <li>• <span className="text-sky-600 font-bold">하늘색</span>: 매칭된 글자</li>
+                  <li>• 자기주도성/공개와공유: <span className="font-bold">7장</span>까지 열기 가능</li>
+                  <li>• 수평커뮤니케이션: <span className="font-bold">9장</span>까지 열기 가능</li>
+                  <li>• <span className="text-sky-600 font-bold">하늘색</span>: 뒤집은 카드</li>
                   <li>• <span className="text-kakao-brown font-bold bg-kakao-yellow/50 px-1">노란색</span>: 완료된 단어</li>
-                  <li>• 제한된 뒤집기 기회 안에 찾아야 해요!</li>
                 </ul>
               </div>
               <button
@@ -380,7 +410,7 @@ const WorkWayGame: React.FC<WorkWayGameProps> = ({ onPointsEarned, onComplete })
             <div
               key={card.id}
               onClick={() => handleCardClick(idx)}
-              className={`aspect-[3/4] relative cursor-pointer transition-all duration-300 preserve-3d group ${card.flipped || card.solved || card.matched ? 'rotate-y-180' : ''} ${card.solved ? 'scale-95' : ''}`}
+              className={`aspect-[3/4] relative cursor-pointer transition-all duration-300 preserve-3d group ${card.flipped || card.solved ? 'rotate-y-180' : ''} ${card.solved ? 'scale-95' : ''}`}
             >
               {/* 카드 뒷면 (?) */}
               <div className="absolute inset-0 backface-hidden flex items-center justify-center bg-kakao-brown border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,0.2)]">
@@ -399,11 +429,9 @@ const WorkWayGame: React.FC<WorkWayGameProps> = ({ onPointsEarned, onComplete })
         {feedback && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
             <div className={`text-3xl md:text-4xl font-black italic drop-shadow-xl px-6 py-3 rounded-xl ${
-              feedback.includes('CLEAR') || feedback.includes('NICE')
+              feedback.includes('CLEAR')
                 ? 'bg-blue-600 text-white'
-                : feedback.includes('소진')
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-red-500 text-white'
+                : 'bg-orange-500 text-white'
             }`}>
               {feedback}
             </div>
