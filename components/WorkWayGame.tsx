@@ -7,12 +7,12 @@ interface WorkWayGameProps {
 }
 
 const STAGES = [
-  { id: 1, word: "자기주도성", chars: ["자", "기", "주", "도", "성"], length: 5 },
-  { id: 2, word: "공개와공유", chars: ["공", "개", "와", "공", "유"], length: 5 },
-  { id: 3, word: "수평커뮤니케이션", chars: ["수", "평", "커", "뮤", "니", "케", "션"], length: 7 }
+  { id: 1, word: "자기주도성", chars: ["자", "기", "주", "도", "성"], maxFlips: 7 },
+  { id: 2, word: "공개와공유", chars: ["공", "개", "와", "공", "유"], maxFlips: 7 },
+  { id: 3, word: "수평커뮤니케이션", chars: ["수", "평", "커", "뮤", "니", "케", "이", "션"], maxFlips: 9 }
 ];
 
-const DECOYS = ["침", "묵", "방", "관", "무", "책", "임", "외", "면", "불", "신", "독", "존"];
+const DECOYS = ["침", "묵", "방", "관", "무", "책", "임", "외", "면", "불", "신", "독"];
 
 interface CardData {
   char: string;
@@ -21,37 +21,44 @@ interface CardData {
   stageId: number | null;
   solved: boolean;
   flipped: boolean;
+  matched: boolean; // 현재 라운드에서 매칭됨
 }
 
 const WorkWayGame: React.FC<WorkWayGameProps> = ({ onPointsEarned, onComplete }) => {
   const [gameState, setGameState] = useState<'start' | 'playing' | 'victory'>('start');
   const [currentStageIdx, setCurrentStageIdx] = useState(0);
   const [cards, setCards] = useState<CardData[]>([]);
-  const [currentSelection, setCurrentSelection] = useState<number[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [score, setScore] = useState(0);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [flipsRemaining, setFlipsRemaining] = useState(7);
+  const [foundChars, setFoundChars] = useState<string[]>([]); // 현재 라운드에서 찾은 글자들
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const initBoard = useCallback(() => {
     let deck: any[] = [];
+
+    // 각 스테이지의 글자들 추가
     STAGES.forEach(stage => {
       stage.chars.forEach(char => {
         deck.push({ char, type: 'target', stageId: stage.id });
       });
     });
+
+    // 방해 글자 추가
     DECOYS.forEach(char => {
       deck.push({ char, type: 'decoy', stageId: null });
     });
 
+    // ID 부여 및 초기화
     deck = deck.map((item, index) => ({
       ...item,
       id: index,
       solved: false,
-      flipped: false
+      flipped: false,
+      matched: false
     }));
 
-    // 고정된 카드 배치 (섞지 않음)
-    // 미리 정의된 순서로 배치
+    // 고정된 카드 배치
     const fixedOrder = [
       17, 4, 25, 11, 2, 19,
       8, 22, 0, 14, 27, 6,
@@ -72,76 +79,151 @@ const WorkWayGame: React.FC<WorkWayGameProps> = ({ onPointsEarned, onComplete })
     setGameState('playing');
     setCurrentStageIdx(0);
     setScore(0);
+    setFlipsRemaining(STAGES[0].maxFlips);
+    setFoundChars([]);
     initBoard();
+  };
+
+  const startNextStage = (nextIdx: number) => {
+    setCurrentStageIdx(nextIdx);
+    setFlipsRemaining(STAGES[nextIdx].maxFlips);
+    setFoundChars([]);
+
+    // 이전 스테이지에서 매칭된 카드들을 solved로 변경
+    setCards(prev => prev.map(card => ({
+      ...card,
+      flipped: card.solved ? true : false,
+      matched: false
+    })));
   };
 
   const handleCardClick = (index: number) => {
     if (gameState !== 'playing' || isProcessing) return;
     const card = cards[index];
-    if (card.solved || card.flipped) return;
+    if (card.solved || card.flipped || card.matched) return;
+    if (flipsRemaining <= 0) return;
 
+    setIsProcessing(true);
+
+    // 카드 뒤집기
     const newCards = [...cards];
     newCards[index].flipped = true;
     setCards(newCards);
+    setFlipsRemaining(prev => prev - 1);
 
-    const newSelection = [...currentSelection, index];
-    setCurrentSelection(newSelection);
+    const currentStage = STAGES[currentStageIdx];
+    const targetChars = [...currentStage.chars];
 
-    if (newSelection.length === STAGES[currentStageIdx].length) {
-      setIsProcessing(true);
-      setTimeout(() => checkSelection(newSelection), 600);
+    // 현재 스테이지의 글자인지 확인
+    if (card.stageId === currentStage.id) {
+      // 아직 찾지 않은 글자인지 확인
+      const remainingChars = targetChars.filter(c => !foundChars.includes(c) ||
+        targetChars.filter(x => x === c).length > foundChars.filter(x => x === c).length);
+
+      if (remainingChars.includes(card.char)) {
+        // 매칭 성공!
+        setTimeout(() => {
+          const updatedCards = [...cards];
+          updatedCards[index].flipped = true;
+          updatedCards[index].matched = true;
+          setCards(updatedCards);
+
+          const newFoundChars = [...foundChars, card.char];
+          setFoundChars(newFoundChars);
+
+          const bonus = 100;
+          setScore(prev => prev + bonus);
+          onPointsEarned(bonus);
+          setFeedback("NICE! +" + bonus);
+          setTimeout(() => setFeedback(null), 800);
+
+          // 모든 글자를 찾았는지 확인
+          if (newFoundChars.length >= currentStage.chars.length) {
+            handleStageComplete();
+          } else {
+            setIsProcessing(false);
+          }
+        }, 300);
+        return;
+      }
     }
-  };
 
-  const checkSelection = (selection: number[]) => {
-    const selectedChars = selection.map(idx => cards[idx].char);
-    const targetChars = STAGES[currentStageIdx].chars;
-    const isMatch = [...selectedChars].sort().join('') === [...targetChars].sort().join('');
-    if (isMatch) {
-      handleSuccess(selection);
-    } else {
-      handleFailure(selection);
-    }
-  };
-
-  const handleSuccess = (indices: number[]) => {
-    const newCards = [...cards];
-    indices.forEach(idx => {
-      newCards[idx].solved = true;
-    });
-    setCards(newCards);
-    const bonus = 500;
-    const newScore = score + bonus;
-    setScore(newScore);
-    onPointsEarned(bonus);
-    setCurrentSelection([]);
-    setIsProcessing(false);
-    setFeedback("GREAT! STAGE CLEAR!");
-    setTimeout(() => setFeedback(null), 1000);
-
-    if (currentStageIdx + 1 < STAGES.length) {
-      setCurrentStageIdx(prev => prev + 1);
-    } else {
-      setGameState('victory');
-      onComplete(newScore); // Pass final score
-    }
-  };
-
-  const handleFailure = (indices: number[]) => {
-    const penalty = -100;
-    setScore(prev => Math.max(0, prev + penalty));
-    onPointsEarned(penalty);
-    setFeedback("TRY AGAIN!");
+    // 매칭 실패 - 카드 다시 뒤집기
     setTimeout(() => {
-      const newCards = [...cards];
-      indices.forEach(idx => {
-        newCards[idx].flipped = false;
-      });
-      setCards(newCards);
-      setCurrentSelection([]);
-      setIsProcessing(false);
+      const updatedCards = [...cards];
+      updatedCards[index].flipped = false;
+      setCards(updatedCards);
+      setFeedback("MISS!");
+      setTimeout(() => setFeedback(null), 500);
+
+      // 남은 기회가 0이면 라운드 실패
+      if (flipsRemaining - 1 <= 0) {
+        handleStageFail();
+      } else {
+        setIsProcessing(false);
+      }
+    }, 600);
+  };
+
+  const handleStageComplete = () => {
+    // 현재 스테이지의 매칭된 카드들을 solved로 변경
+    setCards(prev => prev.map(card => ({
+      ...card,
+      solved: card.matched ? true : card.solved,
+      matched: false
+    })));
+
+    const bonus = 300;
+    setScore(prev => prev + bonus);
+    onPointsEarned(bonus);
+    setFeedback("🎉 STAGE CLEAR! +300");
+
+    setTimeout(() => {
       setFeedback(null);
-    }, 1000);
+      if (currentStageIdx + 1 < STAGES.length) {
+        startNextStage(currentStageIdx + 1);
+        setIsProcessing(false);
+      } else {
+        setGameState('victory');
+        onComplete(score + bonus);
+      }
+    }, 1500);
+  };
+
+  const handleStageFail = () => {
+    setFeedback("💥 기회 소진! 다시 시도...");
+    setTimeout(() => {
+      // 현재 라운드의 매칭된 카드들만 유지, 나머지는 리셋
+      setCards(prev => prev.map(card => ({
+        ...card,
+        flipped: card.solved ? true : false,
+        matched: false
+      })));
+      setFoundChars([]);
+      setFlipsRemaining(STAGES[currentStageIdx].maxFlips);
+      setFeedback(null);
+      setIsProcessing(false);
+    }, 1500);
+  };
+
+  const getCardStyle = (card: CardData) => {
+    if (card.solved) {
+      return 'bg-kakao-yellow border-kakao-brown'; // 완료된 라운드 - 카카오 노란색
+    }
+    if (card.matched) {
+      return 'bg-sky-100 border-sky-500'; // 현재 라운드에서 매칭됨 - 하늘색
+    }
+    return 'bg-white border-black';
+  };
+
+  const getCardTextStyle = (card: CardData) => {
+    if (card.solved) {
+      return 'text-kakao-brown'; // 완료된 라운드 - 카카오 브라운
+    }
+    if (card.matched) {
+      return 'text-sky-600'; // 현재 라운드에서 매칭됨 - 하늘색
+    }
+    return 'text-kakao-brown';
   };
 
   return (
@@ -149,9 +231,9 @@ const WorkWayGame: React.FC<WorkWayGameProps> = ({ onPointsEarned, onComplete })
       <div className="lg:w-80 p-8 border-b-4 lg:border-b-0 lg:border-r-4 border-kakao-brown dark:border-gray-800 bg-gray-50 dark:bg-gray-800 flex flex-col">
         <div className="flex items-center gap-4 mb-8">
           <div className="w-16 h-16 rounded-full border-4 border-kakao-brown overflow-hidden bg-kakao-yellow shrink-0">
-            <img 
-              src="https://i.namu.wiki/i/h5gTVbR7kDn-bBshoThHnt42y68U48Jiln6DIpK-TwDXLrk6G_bu7l6egvkD_iNYPBkGbY028XxO2CYjHJ0oMA.webp" 
-              alt="Chunsik" className="w-full h-full object-cover" 
+            <img
+              src="https://i.namu.wiki/i/h5gTVbR7kDn-bBshoThHnt42y68U48Jiln6DIpK-TwDXLrk6G_bu7l6egvkD_iNYPBkGbY028XxO2CYjHJ0oMA.webp"
+              alt="Chunsik" className="w-full h-full object-cover"
             />
           </div>
           <div>
@@ -159,53 +241,92 @@ const WorkWayGame: React.FC<WorkWayGameProps> = ({ onPointsEarned, onComplete })
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Word Finder Game</p>
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-900 p-4 border-4 border-kakao-brown mb-8 flex justify-between items-center shadow-[4px_4px_0px_0px_rgba(60,30,30,1)]">
-          <span className="text-xs font-black text-gray-400">SCORE</span>
-          <span className="text-3xl font-black text-blue-600">{score}</span>
+
+        {/* 점수 및 남은 기회 */}
+        <div className="flex gap-2 mb-8">
+          <div className="flex-1 bg-white dark:bg-gray-900 p-4 border-4 border-kakao-brown shadow-[4px_4px_0px_0px_rgba(60,30,30,1)]">
+            <span className="text-xs font-black text-gray-400 block">SCORE</span>
+            <span className="text-2xl font-black text-blue-600">{score}</span>
+          </div>
+          <div className="flex-1 bg-white dark:bg-gray-900 p-4 border-4 border-kakao-brown shadow-[4px_4px_0px_0px_rgba(60,30,30,1)]">
+            <span className="text-xs font-black text-gray-400 block">FLIPS</span>
+            <span className={`text-2xl font-black ${flipsRemaining <= 2 ? 'text-red-500' : 'text-green-600'}`}>{flipsRemaining}</span>
+          </div>
         </div>
+
+        {/* 스테이지 진행 */}
         <div className="space-y-6 flex-1">
-          {STAGES.map((stage, idx) => (
-            <div 
-              key={stage.id} 
-              className={`transition-all duration-300 ${currentStageIdx === idx ? 'opacity-100 scale-105' : 'opacity-30'}`}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <span className={`text-[10px] font-black px-2 py-1 border-2 border-black ${currentStageIdx > idx ? 'bg-green-500 text-white' : (currentStageIdx === idx ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-400')}`}>
-                  STEP {stage.id}
-                </span>
-                <span className="font-black text-kakao-brown dark:text-white">{stage.word}</span>
+          {STAGES.map((stage, idx) => {
+            const isCompleted = currentStageIdx > idx;
+            const isCurrent = currentStageIdx === idx;
+
+            return (
+              <div
+                key={stage.id}
+                className={`transition-all duration-300 ${isCurrent ? 'opacity-100 scale-105' : 'opacity-40'}`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`text-[10px] font-black px-2 py-1 border-2 border-black ${isCompleted ? 'bg-kakao-yellow text-kakao-brown' : (isCurrent ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-400')}`}>
+                    STEP {stage.id}
+                  </span>
+                  <span className={`font-black ${isCompleted ? 'text-kakao-brown' : 'text-kakao-brown dark:text-white'}`}>{stage.word}</span>
+                </div>
+                <div className="flex gap-1.5 flex-wrap">
+                  {stage.chars.map((char, charIdx) => {
+                    let isFound = false;
+                    if (isCompleted) {
+                      isFound = true;
+                    } else if (isCurrent) {
+                      // 중복 글자 처리
+                      const countInTarget = stage.chars.slice(0, charIdx + 1).filter(c => c === char).length;
+                      const countFound = foundChars.filter(c => c === char).length;
+                      isFound = countFound >= countInTarget;
+                    }
+
+                    return (
+                      <div
+                        key={charIdx}
+                        className={`w-8 h-10 border-b-4 flex items-center justify-center font-black transition-colors ${
+                          isCompleted
+                            ? 'border-kakao-yellow text-kakao-brown bg-kakao-yellow/30'
+                            : isFound
+                              ? 'border-sky-500 text-sky-600 bg-sky-50'
+                              : 'border-gray-300 text-gray-300 bg-gray-100'
+                        }`}
+                      >
+                        {isCompleted || isFound ? char : '?'}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="flex gap-1.5 flex-wrap">
-                {stage.chars.map((char, charIdx) => {
-                  const isFilled = currentStageIdx > idx || (currentStageIdx === idx && currentSelection.length > charIdx);
-                  const displayChar = currentStageIdx > idx ? char : (isFilled ? cards[currentSelection[charIdx]]?.char : '');
-                  return (
-                    <div 
-                      key={charIdx} 
-                      className={`w-8 h-10 border-b-4 flex items-center justify-center font-black transition-colors ${isFilled ? 'border-blue-600 text-blue-600 bg-blue-50' : 'border-gray-300 text-gray-200 bg-gray-100'}`}
-                    >
-                      {displayChar}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         <div className="mt-8 text-center text-xs font-bold text-gray-400 italic">
-          {feedback || (gameState === 'playing' ? `카드 속에서 '${STAGES[currentStageIdx].word}'를 찾으세요!` : '')}
+          {feedback || (gameState === 'playing' ? `'${STAGES[currentStageIdx].word}' 글자를 찾으세요!` : '')}
         </div>
       </div>
+
       <div className="flex-1 bg-kakao-yellow p-4 md:p-8 flex items-center justify-center relative min-h-[500px]">
         {gameState === 'start' && (
           <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
             <div className="bg-white p-8 max-w-sm w-full border-4 border-kakao-brown text-center shadow-[10px_10px_0px_0px_rgba(60,30,30,1)]">
               <h2 className="text-4xl font-black text-kakao-brown mb-4">WORD FINDER</h2>
-              <p className="text-gray-600 font-bold mb-8 leading-relaxed">
+              <p className="text-gray-600 font-bold mb-4 leading-relaxed">
                 30장의 카드 속에 숨겨진<br/>
                 <span className="text-blue-600">카카오 일하는 방식</span>을 찾으세요!
               </p>
-              <button 
+              <div className="bg-gray-100 p-4 mb-6 text-left text-sm border-2 border-gray-200">
+                <p className="font-black text-kakao-brown mb-2">🎯 게임 규칙</p>
+                <ul className="text-gray-600 space-y-1 text-xs">
+                  <li>• 카드를 뒤집어 WORK WAY 글자를 찾으세요</li>
+                  <li>• <span className="text-sky-600 font-bold">하늘색</span>: 매칭된 글자</li>
+                  <li>• <span className="text-kakao-brown font-bold bg-kakao-yellow/50 px-1">노란색</span>: 완료된 단어</li>
+                  <li>• 제한된 뒤집기 기회 안에 찾아야 해요!</li>
+                </ul>
+              </div>
+              <button
                 onClick={startGame}
                 className="w-full bg-kakao-brown text-kakao-yellow py-4 rounded-none border-4 border-black font-black text-xl shadow-[4px_4px_0_0_black] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
               >
@@ -214,6 +335,7 @@ const WorkWayGame: React.FC<WorkWayGameProps> = ({ onPointsEarned, onComplete })
             </div>
           </div>
         )}
+
         {gameState === 'victory' && (
           <div className="absolute inset-0 z-20 bg-blue-600/90 flex items-center justify-center p-6 overflow-y-auto">
             <div className="bg-white p-8 max-w-md w-full border-4 border-black text-center shadow-[10px_10px_0px_0px_black] my-4">
@@ -252,32 +374,43 @@ const WorkWayGame: React.FC<WorkWayGameProps> = ({ onPointsEarned, onComplete })
             </div>
           </div>
         )}
+
         <div className="grid grid-cols-5 sm:grid-cols-6 gap-2 md:gap-4 w-full max-w-4xl">
           {cards.map((card, idx) => (
-            <div 
+            <div
               key={card.id}
               onClick={() => handleCardClick(idx)}
-              className={`aspect-[3/4] relative cursor-pointer transition-all duration-300 preserve-3d group ${card.flipped || card.solved ? 'rotate-y-180' : ''} ${card.solved ? 'opacity-40 scale-95 pointer-events-none' : ''}`}
+              className={`aspect-[3/4] relative cursor-pointer transition-all duration-300 preserve-3d group ${card.flipped || card.solved || card.matched ? 'rotate-y-180' : ''} ${card.solved ? 'scale-95' : ''}`}
             >
+              {/* 카드 뒷면 (?) */}
               <div className="absolute inset-0 backface-hidden flex items-center justify-center bg-kakao-brown border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,0.2)]">
                 <span className="text-2xl font-black text-kakao-yellow">?</span>
               </div>
-              <div className={`absolute inset-0 backface-hidden rotate-y-180 flex items-center justify-center border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,0.2)] ${card.solved ? 'bg-green-100 border-green-500' : 'bg-white'}`}>
-                <span className={`text-2xl font-black ${card.solved ? 'text-green-600' : 'text-kakao-brown'}`}>
+              {/* 카드 앞면 (글자) */}
+              <div className={`absolute inset-0 backface-hidden rotate-y-180 flex items-center justify-center border-2 shadow-[2px_2px_0_0_rgba(0,0,0,0.2)] ${getCardStyle(card)}`}>
+                <span className={`text-2xl font-black ${getCardTextStyle(card)}`}>
                   {card.char}
                 </span>
               </div>
             </div>
           ))}
         </div>
+
         {feedback && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50 animate-bounce">
-            <div className={`text-4xl font-black italic drop-shadow-xl ${feedback.includes('GREAT') ? 'text-blue-600' : 'text-red-600'}`}>
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+            <div className={`text-3xl md:text-4xl font-black italic drop-shadow-xl px-6 py-3 rounded-xl ${
+              feedback.includes('CLEAR') || feedback.includes('NICE')
+                ? 'bg-blue-600 text-white'
+                : feedback.includes('소진')
+                  ? 'bg-orange-500 text-white'
+                  : 'bg-red-500 text-white'
+            }`}>
               {feedback}
             </div>
           </div>
         )}
       </div>
+
       <style>{`
         .rotate-y-180 { transform: rotateY(180deg); }
         .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
