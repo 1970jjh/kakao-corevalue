@@ -339,19 +339,31 @@ const InterviewSimulation: React.FC<InterviewSimulationProps> = ({ userPhoto, to
         </div>
         
         {messages.map((m, i) => (
-          <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} animate-in slide-in-from-bottom-2`}>
+          <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} animate-in slide-in-from-bottom-2 group`}>
             {m.scoreInfos && m.scoreInfos.map((s: any, idx: number) => (
               <div key={idx} className="bg-white px-4 py-1.5 rounded-full text-[10px] font-black text-blue-600 mb-2 border-2 border-blue-100 shadow-sm animate-bounce flex items-center gap-2">
                 <i className="fas fa-sparkles text-kakao-yellow"></i>
                 {CATEGORY_MAP[s.key as keyof typeof CATEGORY_MAP]} 점수 획득! (+{s.val})
               </div>
             ))}
-            <div 
-              className={`max-w-[85%] p-5 rounded-[25px] text-base leading-relaxed border-2 border-kakao-dark shadow-sm
-                ${m.role === 'user' ? 'bg-kakao-yellow rounded-tr-none' : 'bg-white rounded-tl-none'}
-              `}
-              dangerouslySetInnerHTML={{ __html: marked.parse(m.text) }}
-            />
+            <div className={`relative ${m.role === 'user' ? 'flex flex-row-reverse items-start gap-2' : 'flex items-start gap-2'}`}>
+              <div
+                className={`max-w-[85%] p-5 rounded-[25px] text-base leading-relaxed border-2 border-kakao-dark shadow-sm select-text
+                  ${m.role === 'user' ? 'bg-kakao-yellow rounded-tr-none' : 'bg-white rounded-tl-none'}
+                `}
+                dangerouslySetInnerHTML={{ __html: marked.parse(m.text) }}
+              />
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(m.text);
+                  alert('복사되었습니다!');
+                }}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-gray-400 hover:text-kakao-brown hover:bg-gray-100 rounded-full"
+                title="복사하기"
+              >
+                <i className="fas fa-copy text-sm"></i>
+              </button>
+            </div>
             <span className="text-[9px] font-bold text-gray-400 mt-2 px-2 uppercase">{m.role === 'user' ? userName : 'AI Interviewer'}</span>
           </div>
         ))}
