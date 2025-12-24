@@ -14,9 +14,6 @@ import Footer from './components/Footer';
 import AICultureAssistant from './components/AICultureAssistant';
 import StageCompleteModal from './components/StageCompleteModal';
 import FinalCompleteModal from './components/FinalCompleteModal';
-import Guestbook from './components/Guestbook';
-import HonoraryIdCard from './components/HonoraryIdCard';
-import Leaderboard from './components/Leaderboard';
 import EventPopup from './components/EventPopup';
 import { addLeaderboardEntry } from './services/firebase';
 
@@ -55,9 +52,6 @@ const App: React.FC = () => {
   const [completionTime, setCompletionTime] = useState<string>('');
   const [completionDate, setCompletionDate] = useState<string>('');
   const [showFinalModal, setShowFinalModal] = useState<boolean>(false);
-  const [showGuestbook, setShowGuestbook] = useState<boolean>(false);
-  const [showIdCard, setShowIdCard] = useState<boolean>(false);
-  const [showLeaderboard, setShowLeaderboard] = useState<boolean>(false);
 
   const [modal, setModal] = useState<CompletionInfo>({
     isOpen: false,
@@ -216,22 +210,6 @@ const App: React.FC = () => {
     setShowFinalModal(true);
   };
 
-  const handleProceedToGuestbook = () => {
-    setShowFinalModal(false);
-    setShowGuestbook(true);
-    setTimeout(() => {
-      document.getElementById('guestbook-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 300);
-  };
-
-  const handleGuestbookComplete = () => {
-    setShowIdCard(true);
-    setShowLeaderboard(true);
-    setTimeout(() => {
-      document.getElementById('idcard-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 300);
-  };
-
   const LockedOverlay = ({ message, level }: { message: string, level: string }) => (
     <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/60 dark:bg-kakao-black/80 backdrop-blur-xl transition-all duration-1000">
       <div className="bg-white dark:bg-gray-800 p-12 rounded-[50px] shadow-[0_20px_60px_rgba(0,0,0,0.2)] border-4 border-kakao-yellow flex flex-col items-center group max-w-sm">
@@ -346,40 +324,6 @@ const App: React.FC = () => {
            />
            <Voices />
         </div>
-
-        {/* Guestbook Section */}
-        {showGuestbook && (
-          <div id="guestbook-section" className="animate-in slide-in-from-bottom duration-700">
-            <Guestbook
-              userName={userName}
-              totalPoints={totalPoints}
-              completionTime={completionTime}
-              onComplete={handleGuestbookComplete}
-            />
-          </div>
-        )}
-
-        {/* Honorary ID Card Section */}
-        {showIdCard && (
-          <div id="idcard-section" className="animate-in slide-in-from-bottom duration-700">
-            <HonoraryIdCard
-              userName={userName}
-              userPhoto={userPhoto}
-              totalPoints={totalPoints}
-              completionDate={completionDate}
-            />
-          </div>
-        )}
-
-        {/* Leaderboard Section */}
-        {showLeaderboard && (
-          <div id="leaderboard-section" className="animate-in slide-in-from-bottom duration-700">
-            <Leaderboard
-              currentUserName={userName}
-              currentUserPoints={totalPoints}
-            />
-          </div>
-        )}
       </main>
 
       <Footer />
@@ -397,9 +341,10 @@ const App: React.FC = () => {
       <FinalCompleteModal
         isOpen={showFinalModal}
         userName={userName}
+        userPhoto={userPhoto}
         totalPoints={totalPoints}
         completionTime={completionTime}
-        onProceedToGuestbook={handleProceedToGuestbook}
+        completionDate={completionDate}
       />
 
       <EventPopup />
