@@ -28,12 +28,15 @@ const InterviewSimulation: React.FC<InterviewSimulationProps> = ({ userPhoto, to
   const [completionTimeStr, setCompletionTimeStr] = useState('');
   
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const chatHistory = useRef<any[]>([]);
 
   const TARGET_SCORE = 10;
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
   const startInterview = () => {
@@ -330,7 +333,7 @@ const InterviewSimulation: React.FC<InterviewSimulationProps> = ({ userPhoto, to
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto p-8 space-y-6 scroll-smooth z-10">
+      <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-8 space-y-6 scroll-smooth z-10">
         <div className="text-center">
            <span className="bg-black/5 text-kakao-dark/40 text-[10px] font-black px-4 py-1 rounded-full uppercase tracking-widest">Session Started</span>
         </div>
