@@ -209,8 +209,8 @@ const VisionGame: React.FC<VisionGameProps> = ({ onGameOver }) => {
     const el = document.createElement('div');
     el.className = 'absolute transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center z-10 pointer-events-none';
     el.innerHTML = `
-      <div class="text-3xl filter drop-shadow-lg">${icon}</div>
-      ${type === 'passenger' ? `<div class='absolute -top-7 bg-white text-[#3C1E1E] text-[10px] px-2 py-0.5 rounded-full border-2 border-[#FEE500] whitespace-nowrap font-bold shadow-md'>${content}</div>` : ''}
+      <div class="text-4xl filter drop-shadow-lg">${icon}</div>
+      ${type === 'passenger' ? `<div class='absolute -top-10 bg-white text-[#3C1E1E] text-[20px] px-4 py-1.5 rounded-full border-2 border-[#FEE500] whitespace-nowrap font-bold shadow-md'>${content}</div>` : ''}
     `;
     el.style.left = `${laneCenter}px`;
     el.style.top = '-60px';
@@ -325,9 +325,17 @@ const VisionGame: React.FC<VisionGameProps> = ({ onGameOver }) => {
            <p className="text-[10px] font-black text-kakao-brown/40 mb-10 tracking-[0.3em] uppercase">8-Lane Challenge</p>
            <div className="bg-white/95 p-6 rounded-[32px] mb-10 w-full max-w-xs shadow-2xl border-b-4 border-kakao-brown/10">
               <div className="text-left space-y-4">
+                 <div className="bg-kakao-yellow/20 p-3 rounded-xl border border-kakao-yellow/50 mb-2">
+                    <p className="text-[10px] font-black text-kakao-brown/60 mb-1 uppercase">🎯 Game Story</p>
+                    <p className="text-xs font-bold text-kakao-brown leading-relaxed">
+                      카카오의 <strong className="text-kakao-brown">미션 & 비전</strong>을 담은 크루들을<br/>
+                      버스에 태워 <strong className="text-kakao-brown">비전 스테이션</strong>으로 운행하세요!<br/>
+                      <span className="text-[10px] text-kakao-brown/70">모든 가치 키워드를 수집하면 미션 & 비전이 완성됩니다.</span>
+                    </p>
+                 </div>
                  <div>
                     <p className="text-[9px] font-black text-gray-300 mb-1.5 uppercase tracking-widest">Mission Goal</p>
-                    <p className="text-xs font-bold text-kakao-brown leading-relaxed">모든 가치 키워드를 수집하세요!<br/>장애물 충돌 시 <strong>-1,000점</strong> 감점됩니다.</p>
+                    <p className="text-xs font-bold text-kakao-brown leading-relaxed">모든 가치 키워드를 순서대로 수집하세요!<br/>장애물 충돌 시 <strong>-1,000점</strong> 감점됩니다.</p>
                  </div>
                  <div className="h-[1px] bg-gray-100"></div>
                  <div>

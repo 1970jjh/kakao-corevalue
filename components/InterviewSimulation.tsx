@@ -28,12 +28,15 @@ const InterviewSimulation: React.FC<InterviewSimulationProps> = ({ userPhoto, to
   const [completionTimeStr, setCompletionTimeStr] = useState('');
   
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const chatHistory = useRef<any[]>([]);
 
   const TARGET_SCORE = 10;
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
   const startInterview = () => {
@@ -61,9 +64,15 @@ const InterviewSimulation: React.FC<InterviewSimulationProps> = ({ userPhoto, to
       [평가 및 출력 규칙]
       사용자의 답변이 들어오면 반드시 평가 태그를 앞에 붙이세요.
       형식: <<<SCORE | 항목:점수 | 이유>>>
-      항목 키워드: Why, Solver, Grow, AI
-      점수: +2 ~ +9 (훌륭함), -3 ~ -5 (부족함), 0 (중립)
-      
+      항목 키워드: Why, Solver, Grow, AI (반드시 영문 키워드 사용)
+      점수: 항상 양수만 부여 (+3 ~ +12)
+
+      [중요]
+      - 지원자를 격려하며 긍정적으로 평가하세요.
+      - 모든 답변에서 좋은 점을 찾아 +5 이상의 점수를 주세요.
+      - 훌륭한 답변은 +8~+12점을 주세요.
+      - 감점(음수 점수)은 절대 주지 마세요. 부족한 답변도 최소 +3점을 주세요.
+
       카카오스러운 수평적 분위기(영어 이름 사용 등)로 대화하세요. 질문은 한 번에 하나씩만 하세요.
     `;
 
@@ -121,22 +130,38 @@ const InterviewSimulation: React.FC<InterviewSimulationProps> = ({ userPhoto, to
   };
 
   const parseResponse = (text: string) => {
-    const regex = /<<<SCORE\s*\|\s*(.*?):(.*?)\s*\|\s*(.*?)>>>/gi;
+    // 더 유연한 정규식: 다양한 형식 지원
+    const regex = /<<<\s*SCORE\s*\|\s*([^:|]+)\s*:\s*([+-]?\d+)\s*\|\s*([^>]+)>>>/gi;
     let match;
     const scoresFound: any[] = [];
     let cleanText = text;
 
     while ((match = regex.exec(text)) !== null) {
       const categoryRaw = match[1].trim().toLowerCase();
-      const val = parseInt(match[2].trim());
+      let val = parseInt(match[2].trim());
       const reason = match[3].trim();
-      
-      let key = 'why';
-      if (categoryRaw.includes('solv')) key = 'solver';
-      else if (categoryRaw.includes('grow')) key = 'grow';
-      else if (categoryRaw.includes('ai')) key = 'ai';
-      
-      scoresFound.push({ key, val, reason });
+
+      // 감점 제거: 음수 점수는 0으로 처리
+      if (val < 0) {
+        val = 0;
+      }
+
+      // 카테고리 매칭 개선 (한글 + 영문 키워드 지원)
+      let key = 'why'; // 기본값
+      if (categoryRaw.includes('solv') || categoryRaw.includes('문제') || categoryRaw.includes('해결')) {
+        key = 'solver';
+      } else if (categoryRaw.includes('grow') || categoryRaw.includes('함께') || categoryRaw.includes('성장') || categoryRaw.includes('together')) {
+        key = 'grow';
+      } else if (categoryRaw.includes('ai') || categoryRaw.includes('native') || categoryRaw.includes('기술')) {
+        key = 'ai';
+      } else if (categoryRaw.includes('why') || categoryRaw.includes('본질') || categoryRaw.includes('탐구')) {
+        key = 'why';
+      }
+
+      // 점수가 0보다 클 때만 추가
+      if (val > 0) {
+        scoresFound.push({ key, val, reason });
+      }
       cleanText = cleanText.replace(match[0], '');
     }
     return { hasScore: scoresFound.length > 0, scoreData: scoresFound, text: cleanText.trim() };
@@ -318,10 +343,10 @@ const InterviewSimulation: React.FC<InterviewSimulationProps> = ({ userPhoto, to
                <p className="text-sm font-black text-blue-600">{userName}</p>
             </div>
          </div>
-         <div className="flex gap-1.5 md:gap-3">
+         <div className="flex gap-3 md:gap-4">
             {Object.entries(scores).map(([k, v]) => (
-              <div key={k} className={`px-2.5 py-1.5 border-2 border-kakao-dark rounded-xl text-[9px] font-black shadow-sm transition-all ${v >= TARGET_SCORE ? 'bg-green-500 text-white scale-110' : 'bg-white text-gray-400'}`}>
-                 <span className="hidden md:inline mr-1">{CATEGORY_MAP[k as keyof typeof CATEGORY_MAP]}</span>
+              <div key={k} className={`px-4 py-2.5 border-2 border-kakao-dark rounded-2xl text-sm font-black shadow-sm transition-all ${v >= TARGET_SCORE ? 'bg-green-500 text-white scale-110' : 'bg-white text-gray-400'}`}>
+                 <span className="hidden md:inline mr-1.5">{CATEGORY_MAP[k as keyof typeof CATEGORY_MAP]}</span>
                  <span className="md:hidden uppercase mr-1">{k}</span>
                  {v}
               </div>
@@ -330,25 +355,37 @@ const InterviewSimulation: React.FC<InterviewSimulationProps> = ({ userPhoto, to
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto p-8 space-y-6 scroll-smooth z-10">
+      <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-8 space-y-6 scroll-smooth z-10">
         <div className="text-center">
            <span className="bg-black/5 text-kakao-dark/40 text-[10px] font-black px-4 py-1 rounded-full uppercase tracking-widest">Session Started</span>
         </div>
         
         {messages.map((m, i) => (
-          <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} animate-in slide-in-from-bottom-2`}>
+          <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} animate-in slide-in-from-bottom-2 group`}>
             {m.scoreInfos && m.scoreInfos.map((s: any, idx: number) => (
               <div key={idx} className="bg-white px-4 py-1.5 rounded-full text-[10px] font-black text-blue-600 mb-2 border-2 border-blue-100 shadow-sm animate-bounce flex items-center gap-2">
                 <i className="fas fa-sparkles text-kakao-yellow"></i>
                 {CATEGORY_MAP[s.key as keyof typeof CATEGORY_MAP]} 점수 획득! (+{s.val})
               </div>
             ))}
-            <div 
-              className={`max-w-[85%] p-5 rounded-[25px] text-base leading-relaxed border-2 border-kakao-dark shadow-sm
-                ${m.role === 'user' ? 'bg-kakao-yellow rounded-tr-none' : 'bg-white rounded-tl-none'}
-              `}
-              dangerouslySetInnerHTML={{ __html: marked.parse(m.text) }}
-            />
+            <div className={`relative ${m.role === 'user' ? 'flex flex-row-reverse items-start gap-2' : 'flex items-start gap-2'}`}>
+              <div
+                className={`max-w-[85%] p-5 rounded-[25px] text-base leading-relaxed border-2 border-kakao-dark shadow-sm select-text
+                  ${m.role === 'user' ? 'bg-kakao-yellow rounded-tr-none' : 'bg-white rounded-tl-none'}
+                `}
+                dangerouslySetInnerHTML={{ __html: marked.parse(m.text) }}
+              />
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(m.text);
+                  alert('복사되었습니다!');
+                }}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-gray-400 hover:text-kakao-brown hover:bg-gray-100 rounded-full"
+                title="복사하기"
+              >
+                <i className="fas fa-copy text-sm"></i>
+              </button>
+            </div>
             <span className="text-[9px] font-bold text-gray-400 mt-2 px-2 uppercase">{m.role === 'user' ? userName : 'AI Interviewer'}</span>
           </div>
         ))}
