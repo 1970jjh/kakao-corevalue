@@ -43,14 +43,25 @@ const WorkWayGame: React.FC<WorkWayGameProps> = ({ onPointsEarned, onComplete })
       deck.push({ char, type: 'decoy', stageId: null });
     });
 
-    deck = deck.map((item, index) => ({ 
-      ...item, 
-      id: index, 
-      solved: false, 
-      flipped: false 
+    deck = deck.map((item, index) => ({
+      ...item,
+      id: index,
+      solved: false,
+      flipped: false
     }));
-    deck.sort(() => Math.random() - 0.5);
-    setCards(deck);
+
+    // 고정된 카드 배치 (섞지 않음)
+    // 미리 정의된 순서로 배치
+    const fixedOrder = [
+      17, 4, 25, 11, 2, 19,
+      8, 22, 0, 14, 27, 6,
+      12, 3, 20, 9, 24, 15,
+      1, 18, 26, 7, 13, 21,
+      5, 23, 10, 16, 28, 29
+    ];
+
+    const orderedDeck = fixedOrder.map(idx => deck[idx] || deck[idx % deck.length]);
+    setCards(orderedDeck);
   }, []);
 
   useEffect(() => {
@@ -204,23 +215,40 @@ const WorkWayGame: React.FC<WorkWayGameProps> = ({ onPointsEarned, onComplete })
           </div>
         )}
         {gameState === 'victory' && (
-          <div className="absolute inset-0 z-20 bg-blue-600/90 flex items-center justify-center p-6">
-            <div className="bg-white p-10 max-w-sm w-full border-4 border-black text-center shadow-[10px_10px_0px_0px_black]">
+          <div className="absolute inset-0 z-20 bg-blue-600/90 flex items-center justify-center p-6 overflow-y-auto">
+            <div className="bg-white p-8 max-w-md w-full border-4 border-black text-center shadow-[10px_10px_0px_0px_black] my-4">
               <div className="text-6xl mb-4">🏆</div>
-              <h2 className="text-4xl font-black text-kakao-brown mb-2 uppercase italic">Mission Complete</h2>
-              <p className="text-gray-600 font-bold mb-8">
+              <h2 className="text-3xl font-black text-kakao-brown mb-2 uppercase italic">Mission Complete</h2>
+              <p className="text-gray-600 font-bold mb-6">
                 모든 가치를 성공적으로 찾았습니다!<br/>당신은 진정한 카카오 크루입니다.
               </p>
-              <div className="bg-gray-100 p-4 mb-8 border-4 border-dashed border-gray-300">
+              <div className="bg-gray-100 p-4 mb-6 border-4 border-dashed border-gray-300">
                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Total Game Score</p>
                  <p className="text-4xl font-black text-blue-600">{score} P</p>
               </div>
-              <button 
-                onClick={() => location.reload()}
-                className="w-full bg-kakao-brown text-kakao-yellow py-4 rounded-none border-4 border-black font-black text-xl shadow-[4px_4px_0_0_black]"
-              >
-                FINISH
-              </button>
+
+              {/* WORK WAY 복습 섹션 */}
+              <div className="bg-kakao-yellow/20 p-4 rounded-xl border-2 border-kakao-yellow mb-6 text-left">
+                <p className="text-xs font-black text-kakao-brown/60 mb-3 uppercase tracking-widest text-center">📚 Work Way 복습</p>
+                <div className="space-y-3">
+                  <div className="bg-white p-3 rounded-lg border-2 border-kakao-brown/10">
+                    <p className="text-sm font-black text-kakao-brown">1. 자기주도성</p>
+                    <p className="text-xs text-gray-600">스스로 목표를 설정하고 주도적으로 일을 추진합니다.</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border-2 border-kakao-brown/10">
+                    <p className="text-sm font-black text-kakao-brown">2. 공개와 공유</p>
+                    <p className="text-xs text-gray-600">정보와 지식을 투명하게 공개하고 함께 나눕니다.</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border-2 border-kakao-brown/10">
+                    <p className="text-sm font-black text-kakao-brown">3. 수평 커뮤니케이션</p>
+                    <p className="text-xs text-gray-600">직급에 관계없이 자유롭게 의견을 나눕니다.</p>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-400 font-bold">
+                잠시 후 다음 단계로 이동합니다...
+              </p>
             </div>
           </div>
         )}
