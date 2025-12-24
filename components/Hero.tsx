@@ -37,9 +37,23 @@ const Hero: React.FC = () => {
           <a href="#intro" className="bg-kakao-brown text-white dark:bg-white dark:text-kakao-brown px-10 py-4 rounded-full font-bold text-lg shadow-xl hover:scale-105 transition-all hoverable">
             여정 시작하기
           </a>
-          <button className="bg-white/40 dark:bg-white/10 text-kakao-brown dark:text-white border border-kakao-brown/20 px-10 py-4 rounded-full font-bold text-lg backdrop-blur-sm hover:bg-white/60 transition-all hoverable">
-            문화 영상 보기 <i className="fas fa-play ml-2 text-xs"></i>
-          </button>
+          <a href="https://www.youtube.com/@Kakaobrandmedia" target="_blank" rel="noopener noreferrer" className="bg-white/40 dark:bg-white/10 text-kakao-brown dark:text-white border border-kakao-brown/20 px-10 py-4 rounded-full font-bold text-lg backdrop-blur-sm hover:bg-white/60 transition-all hoverable">
+            카카오 문화 보기 <i className="fas fa-arrow-right ml-2 text-xs"></i>
+          </a>
+        </div>
+
+        {/* YouTube Video */}
+        <div className="mt-12 w-full max-w-3xl mx-auto">
+          <div className="relative w-full pt-[56.25%] rounded-2xl overflow-hidden shadow-2xl">
+            <iframe
+              className="absolute inset-0 w-full h-full"
+              src="https://www.youtube.com/embed/13Dfwhq0Qhg"
+              title="카카오 문화 영상"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            ></iframe>
+          </div>
         </div>
       </div>
 
