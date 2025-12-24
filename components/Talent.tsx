@@ -89,9 +89,9 @@ const Talent: React.FC<TalentProps> = ({ userPhoto, totalPoints, startTime, onAd
                 카카오의 모든 문화와 가치를 완벽하게 이해하셨습니다.<br/>
                 이제 당신의 도전을 응원합니다. 위대한 여정에 함께하세요.
               </p>
-              <button className="bg-kakao-yellow text-kakao-brown px-12 py-5 rounded-full font-black text-xl hover:bg-white transition-all hoverable">
-                채용 공고 확인하기
-              </button>
+              <a href="https://careers.kakao.com/index" target="_blank" rel="noopener noreferrer" className="inline-block bg-kakao-yellow text-kakao-brown px-12 py-5 rounded-full font-black text-xl hover:bg-white transition-all hoverable">
+                채용 공고 확인하기 <i className="fas fa-external-link-alt ml-2"></i>
+              </a>
             </div>
             <div className="hidden md:block opacity-20">
               <i className="fas fa-rocket text-[180px] rotate-12"></i>
