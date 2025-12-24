@@ -18,6 +18,7 @@ import FinalCompleteModal from './components/FinalCompleteModal';
 import Guestbook from './components/Guestbook';
 import HonoraryIdCard from './components/HonoraryIdCard';
 import Leaderboard from './components/Leaderboard';
+import EventPopup from './components/EventPopup';
 import { addLeaderboardEntry } from './services/firebase';
 
 export type UnlockState = {
@@ -402,6 +403,8 @@ const App: React.FC = () => {
         completionTime={completionTime}
         onProceedToGuestbook={handleProceedToGuestbook}
       />
+
+      <EventPopup />
     </div>
   );
 };
